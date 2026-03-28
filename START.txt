@@ -1,0 +1,12 @@
+Backend:
+cd D:\Projects\Home\Home\backend
+npm run dev
+
+Web:
+cd D:\Projects\Home\Home\web
+npm run dev
+
+Mobile:
+cd D:\Projects\Home\Home\frontend
+npm start
+
