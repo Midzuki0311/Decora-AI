@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View, TextInput, ActivityIndicator } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View, TextInput, ActivityIndicator, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { AppHeader } from '../src/components/new-ui/AppHeader';
@@ -11,6 +11,7 @@ import { ScreenWrapper, FadeInView } from '../src/components/new-ui/ScreenWrappe
 import { AnimatedPressable } from '../src/components/new-ui/AnimatedPressable';
 import { ConfettiCannon } from '../src/components/ConfettiCannon';
 import { api } from '../src/api/client';
+import { useScrollStore } from '../src/store/scrollStore';
 
 function InfoRow({ icon, label, value, colors, isLast, onChange }: {
   icon: string; label: string; value: string; colors: any; isLast?: boolean; onChange?: (val: string) => void;
@@ -40,15 +41,21 @@ export default function AccountInfoScreen() {
   const { colors, isDark } = useUI();
   const { t } = useLanguageStore();
   const { token, user, isAuthenticated } = useAuthStore();
+  const { updateScroll } = useScrollStore();
   const [profile, setProfile] = useState({
-    name: user?.username || 'User',
-    email: user?.email || 'email@example.com',
-    phone: '+998 90 123 45 67',
-    avatar: user?.avatarUrl || 'https://i.pravatar.cc/150?img=32'
+    name: user?.username || '',
+    email: user?.email || '',
+    phone: '',
+    avatar: user?.avatarUrl || ''
   });
   const [isSaving, setIsSaving] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const scrollY = event.nativeEvent.contentOffset.y;
+    updateScroll(scrollY);
+  };
 
   useEffect(() => {
     // Load user profile from API if authenticated
@@ -66,15 +73,22 @@ export default function AccountInfoScreen() {
       if (response?.success && response.data) {
         const userData = response.data;
         setProfile({
-          name: userData.username || 'User',
+          name: userData.username || '',
           email: userData.email || '',
-          phone: '+998 90 123 45 67',
-          avatar: userData.avatarUrl || 'https://i.pravatar.cc/150?img=32'
+          phone: userData.phone || '',
+          avatar: userData.avatarUrl || ''
         });
+      } else {
+        console.error('Failed to load profile:', response?.error);
+        alert('Failed to load profile. Please try again.');
       }
     } catch (error: any) {
       console.error('Load profile error:', error);
-      // Keep default profile on error
+      if (error?.statusCode === 401) {
+        alert('Your session has expired. Please login again.');
+      } else {
+        alert('Error loading profile: ' + (error?.message || 'Unknown error'));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -91,10 +105,12 @@ export default function AccountInfoScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 0.85,
     });
     if (!result.canceled && result.assets[0]) {
-      setProfile({ ...profile, avatar: result.assets[0].uri });
+      const localUri = result.assets[0].uri;
+      // Set locally so it shows immediately
+      setProfile({ ...profile, avatar: localUri });
     }
   };
 
@@ -122,15 +138,26 @@ export default function AccountInfoScreen() {
         phone: profile.phone,
         ...(isLocalFile && { avatarUri: profile.avatar }),
       };
-
-      console.log('Saving profile with payload:', payload);
       
       const response = await api.updateProfileInfo(payload);
 
-      console.log('Profile save response:', response);
-
       if (!response || response?.success === false) {
         throw new Error(response?.error || response?.message || 'Failed to save profile');
+      }
+      
+      // Reload profile from API to get updated data
+      const updatedProfile = await api.getProfile();
+      if (updatedProfile?.success && updatedProfile.data) {
+        const userData = updatedProfile.data;
+        // Update auth store with new user data
+        useAuthStore.setState({ user: userData });
+        // Update local profile state
+        setProfile({
+          name: userData.username || '',
+          email: userData.email || '',
+          phone: userData.phone || '',
+          avatar: userData.avatarUrl || ''
+        });
       }
       
       // Show success message
@@ -172,13 +199,28 @@ export default function AccountInfoScreen() {
             contentContainerStyle={s.scroll} 
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
           >
             <FadeInView delay={40}>
               <View style={s.avatarSection}>
                 <Pressable onPress={handlePickAvatar}>
                   <View style={[s.avatarRing, { borderColor: colors.primary }]}>
-                    <Image source={{ uri: profile.avatar }} style={s.avatar} />
-                    <View style={s.editAvatarBadge}>
+                    {profile.avatar ? (
+                      <Image
+                        source={{ uri: profile.avatar }}
+                        style={s.avatar}
+                        onError={() => {
+                          // If URL fails, clear it to show the icon fallback
+                          setProfile(p => ({ ...p, avatar: '' }));
+                        }}
+                      />
+                    ) : (
+                      <View style={[s.avatar, { backgroundColor: colors.primary + '20', justifyContent: 'center', alignItems: 'center' }]}>
+                        <Ionicons name="person" size={40} color={colors.primary} />
+                      </View>
+                    )}
+                    <View style={[s.editAvatarBadge, { borderColor: colors.bg }]}>
                       <Ionicons name="camera" size={16} color="#fff" />
                     </View>
                   </View>

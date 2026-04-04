@@ -157,6 +157,19 @@ export interface Translations {
   uploadPhoto: string;
   useDeviceCamera: string;
   chooseFromGallery: string;
+
+  // Browse Samples Screen
+  browseSamples: string;
+  browseDemoRooms: string;
+  selectRoom: string;
+  chooseRoomToDesign: string;
+  preview: string;
+  beforeDesign: string;
+  viewDesignVariations: string;
+  useThisRoom: string;
+  useThisStyle: string;
+  backToRooms: string;
+  copyPrompt: string;
 }
 
 export const translations: Record<Language, Translations> = {
@@ -275,6 +288,17 @@ export const translations: Record<Language, Translations> = {
     uploadPhoto: "Rasmni yuklang",
     useDeviceCamera: "Qurilmaning kamerasidan foydalaning",
     chooseFromGallery: "Kutubxonadan tanlang",
+    browseSamples: "Namuna ko'ring",
+    browseDemoRooms: "Tayyor xonalarni ko'ring",
+    selectRoom: "Xonani tanlang",
+    chooseRoomToDesign: "Dizayn qilish uchun xonani tanlang",
+    preview: "Ko'rib chiqish",
+    beforeDesign: "Oldin",
+    viewDesignVariations: "Dizayn variantlarini ko'ring",
+    useThisRoom: "Bu xonani ishlatish",
+    useThisStyle: "Bu stilni ishlatish",
+    backToRooms: "Xonalarga qaytarish",
+    copyPrompt: "Dizayn promptini nusxalash",
   },
   ru: {
     home: "Главная",
@@ -383,7 +407,7 @@ export const translations: Record<Language, Translations> = {
     yourGenerations: "Ваши генерации",
     filter: "Фильтр",
     filterByStyle: "Фильтр по стилю",
-    transformYourSpace: "Преобразуйте своё пространство",
+    transformYourSpace: "Трансформируйте ваше пространство",
     heroSubtitle: "Увидьте магию ИИ. Проведите пальцем, чтобы сравнить до и после.",
     howItWorks: "Как это работает?",
     howItWorksDesc1: "Decora AI использует передовой искусственный интеллект для переделки ваших внутренних пространств. Просто загрузите фото своей пустой или старой комнаты, выберите предпочитаемый архитектурный стиль, и наш ИИ создаст фотореалистичный рендер вашего новоразработанного пространства за несколько секунд.",
@@ -391,6 +415,17 @@ export const translations: Record<Language, Translations> = {
     uploadPhoto: "Загрузить фото",
     useDeviceCamera: "Использовать камеру устройства",
     chooseFromGallery: "Выбрать из галереи",
+    browseSamples: "Просмотр примеров",
+    browseDemoRooms: "Просмотр готовых комнат",
+    selectRoom: "Выберите комнату",
+    chooseRoomToDesign: "Выберите комнату для дизайна",
+    preview: "Предпросмотр",
+    beforeDesign: "До",
+    viewDesignVariations: "Просмотр вариантов дизайна",
+    useThisRoom: "Использовать эту комнату",
+    useThisStyle: "Использовать этот стиль",
+    backToRooms: "Вернуться к комнатам",
+    copyPrompt: "Скопировать промпт дизайна",
   },
   en: {
     home: "Home",
@@ -507,6 +542,17 @@ export const translations: Record<Language, Translations> = {
     uploadPhoto: "Upload Photo",
     useDeviceCamera: "Use device camera",
     chooseFromGallery: "Choose from gallery",
+    browseSamples: "Browse Samples",
+    browseDemoRooms: "View ready-made rooms",
+    selectRoom: "Select a Room",
+    chooseRoomToDesign: "Choose a room to start designing",
+    preview: "Preview",
+    beforeDesign: "Before",
+    viewDesignVariations: "View Design Variations",
+    useThisRoom: "Use This Room",
+    useThisStyle: "Use This Style",
+    backToRooms: "Back to Rooms",
+    copyPrompt: "Copy Design Prompt",
   },
   jp: {
     home: "ホーム",
@@ -623,6 +669,17 @@ export const translations: Record<Language, Translations> = {
     uploadPhoto: "写真をアップロード",
     useDeviceCamera: "デバイスカメラを使用",
     chooseFromGallery: "ギャラリーから選択",
+    browseSamples: "サンプルを見る",
+    browseDemoRooms: "デモルームを見る",
+    selectRoom: "部屋を選択",
+    chooseRoomToDesign: "デザインする部屋を選択",
+    preview: "プレビュー",
+    beforeDesign: "前",
+    viewDesignVariations: "デザイン変更を表示",
+    useThisRoom: "この部屋を使用",
+    useThisStyle: "このスタイルを使用",
+    backToRooms: "部屋に戻る",
+    copyPrompt: "デザインプロンプトをコピー",
   },
 };
 

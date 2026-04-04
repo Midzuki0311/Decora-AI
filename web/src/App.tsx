@@ -1,41 +1,44 @@
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider } from './components/ThemeProvider';
-import Layout from './components/Layout';
-import Landing from './pages/Landing';
-import Create from './pages/Create';
-import Result from './pages/Result';
-import Gallery from './pages/Gallery';
-import Admin from './pages/Admin';
-import Features from './pages/Features';
-
-// A simple mock for protected routes
-function RequireAuth({ children }: { children: React.ReactNode }) {
-  const isLoggedIn = localStorage.getItem('user_logged_in') === 'true';
-  if (!isLoggedIn) {
-    // If not logged in, redirect home with a hash to trigger the auth modal 
-    // or we can use state. We'll use a specific query param.
-    return <Navigate to="/?auth_required=true" replace />;
-  }
-  return children;
-}
+import React, { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import HomePage from './pages/Home';
+import AboutPage from './pages/About';
+import ContactPage from './pages/Contact';
+import LoginPage from './pages/Login';
+import SignupPage from './pages/Signup';
+import BudgetPage from './pages/Budget';
+import QuizPage from './pages/Quiz';
+import MaterialsPage from './pages/Materials';
+import GalleryPage from './pages/Gallery';
+import DiagramsPage from './pages/Diagrams';
+import StartProjectPage from './pages/StartProject';
+import PrivacyPage from './pages/Privacy';
+import LinksPage from './pages/Links';
+import Header from './components/Header';
+import Footer from './components/Footer';
+import Toast from './components/Toast';
 
 export default function App() {
   return (
-    <ThemeProvider>
+    <Router>
+      <Header />
       <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<Landing />} />
-          <Route path="/create" element={<Create />} />
-          <Route path="/result" element={<Result />} />
-          <Route path="/gallery" element={<Gallery />} />
-          <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
-          <Route path="/features" element={<Features />} />
-          {/* Mock routes to satisfy History/Settings auth block */}
-          <Route path="/history" element={<RequireAuth><div className="pt-32 text-center text-on-surface">History</div></RequireAuth>} />
-          <Route path="/settings" element={<RequireAuth><div className="pt-32 text-center text-on-surface">Settings</div></RequireAuth>} />
-        </Route>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/budget" element={<BudgetPage />} />
+        <Route path="/quiz" element={<QuizPage />} />
+        <Route path="/materials" element={<MaterialsPage />} />
+        <Route path="/gallery" element={<GalleryPage />} />
+        <Route path="/diagrams" element={<DiagramsPage />} />
+        <Route path="/start-project" element={<StartProjectPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/links" element={<LinksPage />} />
       </Routes>
-    </ThemeProvider>
+      <Footer />
+      <Toast />
+    </Router>
   );
 }
+

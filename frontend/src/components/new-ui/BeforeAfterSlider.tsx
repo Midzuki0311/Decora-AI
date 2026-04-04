@@ -90,7 +90,7 @@ export function BeforeAfterSlider({ beforeImage, afterImage, height = 360 }: Pro
             <Animated.View style={[styles.afterClip, { height }, beforeClipStyle]}>
               <Image 
                 source={beforeSource} 
-                style={[{ width: containerWidth, height, position: 'absolute', top: 0, left: 0 }]} 
+                style={[{ width: containerWidth, height }, styles.beforeImage]} 
                 resizeMode="cover" 
               />
             </Animated.View>
@@ -147,6 +147,11 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  beforeImage: {
     position: 'absolute',
     top: 0,
     left: 0,

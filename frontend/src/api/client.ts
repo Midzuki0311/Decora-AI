@@ -103,8 +103,11 @@ class ApiClient {
       if (!response.ok) {
         // ── Auto-clear broken/expired token on 401 ────────────────────────────
         if (response.status === 401) {
-          // Silently drop the stale token — user becomes a Guest
+          // Log out user and show error
           getAuthStore().getState().logout().catch(() => { });
+          const err = new Error('Session expired. Please login again.') as any;
+          err.statusCode = 401;
+          throw err;
         }
         const errMsg = data.error || `Request failed with status ${response.status}`;
         const err = new Error(errMsg) as any;
@@ -394,16 +397,6 @@ class ApiClient {
   }
 
   // Profile Update
-    async getAppSettings(): Promise<ApiResponse<any>> {
-    return this.request<any>('/admin/settings');
-  }
-
-  async updateAppSettings(data: { beforeImageUrl?: string, afterImageUrl?: string }): Promise<ApiResponse<any>> {
-    return this.request<any>('/admin/settings', {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
 
   async updateProfile(imageUri: string): Promise<ApiResponse<any>> {
     const formData = this.buildImageFormData(imageUri);

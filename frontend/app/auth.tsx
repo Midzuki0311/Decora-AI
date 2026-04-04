@@ -56,7 +56,12 @@ export default function AuthScreen() {
 
     const { isAuthenticated } = useAuthStore.getState();
     if (isAuthenticated) {
-      router.replace('/' as any);
+      // For new registrations, show onboarding
+      if (!isLogin) {
+        router.replace('/onboarding' as any);
+      } else {
+        router.replace('/' as any);
+      }
     }
   };
 

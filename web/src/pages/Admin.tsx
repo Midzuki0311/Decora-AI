@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { useLanguage } from '../i18n/useLanguage';
-import { Upload, Image as ImageIcon, Settings, Users } from 'lucide-react';
+import { Upload, Image as ImageIcon, Settings, Users, Camera } from 'lucide-react';
+import AdminGalleryManagement from '../components/AdminGalleryManagement';
 
 export default function Admin() {
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'images' | 'features' | 'settings' | 'users'>('images');
+  const [activeTab, setActiveTab] = useState<'images' | 'features' | 'settings' | 'users' | 'gallery'>('images');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<File[]>([]);
   const [features, setFeatures] = useState<Array<{ id: string; name: string; enabled: boolean }>>([
     { id: '1', name: 'Image Comparison', enabled: true },
@@ -37,17 +40,24 @@ export default function Admin() {
         <p className="text-on-surface-variant dark:text-gray-400 mb-8">Manage your application settings and content</p>
 
         {/* Tab Navigation */}
-        <div className="flex gap-4 mb-8 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex gap-4 mb-8 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
           {[
             { id: 'images', label: t('admin.uploadImages'), icon: ImageIcon },
+            { id: 'gallery', label: 'Gallery', icon: Camera },
             { id: 'features', label: t('admin.manageFeatures'), icon: Settings },
             { id: 'settings', label: t('admin.settings'), icon: Settings },
             { id: 'users', label: t('admin.users'), icon: Users },
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`px-4 py-3 pb-4 border-b-2 transition-colors flex items-center gap-2 ${
+              onClick={() => {
+                if (tab.id === 'gallery' && !adminPassword) {
+                  setShowPasswordPrompt(true);
+                } else {
+                  setActiveTab(tab.id as any);
+                }
+              }}
+              className={`px-4 py-3 pb-4 border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'border-primary text-primary'
                   : 'border-transparent text-on-surface-variant dark:text-gray-400 hover:text-on-surface dark:hover:text-white'
@@ -58,6 +68,52 @@ export default function Admin() {
             </button>
           ))}
         </div>
+
+        {/* Admin Password Prompt Modal */}
+        {showPasswordPrompt && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowPasswordPrompt(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl p-8 max-w-sm w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="text-2xl font-bold mb-4 text-on-surface dark:text-white">Admin Access Required</h2>
+              <p className="text-on-surface-variant dark:text-gray-400 mb-6">
+                Enter the admin password to access gallery management
+              </p>
+              <input
+                type="password"
+                placeholder="Admin Password"
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-on-surface dark:text-white mb-4"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setActiveTab('gallery');
+                    setShowPasswordPrompt(false);
+                  }}
+                  className="flex-1 bg-primary text-white px-4 py-2 rounded-lg hover:bg-opacity-90 transition-all"
+                >
+                  Access
+                </button>
+                <button
+                  onClick={() => setShowPasswordPrompt(false)}
+                  className="flex-1 bg-gray-200 dark:bg-gray-700 text-on-surface dark:text-white px-4 py-2 rounded-lg hover:bg-opacity-80 transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
 
         {/* Images Tab */}
         {activeTab === 'images' && (
@@ -236,6 +292,11 @@ export default function Admin() {
               </table>
             </div>
           </motion.div>
+        )}
+
+        {/* Gallery Tab */}
+        {activeTab === 'gallery' && adminPassword && (
+          <AdminGalleryManagement adminPassword={adminPassword} />
         )}
       </motion.div>
     </div>

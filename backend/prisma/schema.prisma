@@ -159,3 +159,71 @@ model AppSettings {
 
   @@map("app_settings")
 }
+
+// ─── Trial Demo Images (Пробный Режим) ────
+// Бош менюдаги "Текинга синаб кўриш" учун админ томондан кўрсатиладиган 5 та расм
+model TrialDemo {
+  id              String   @id @default(uuid())
+  title           String?  // Расм номи (масалан: "Living Room 1")
+  beforeImageUrl  String   @map("before_image_url")  // Cloudinary URL Original
+  beforePublicId  String?  @map("before_public_id")  // Cloudinary public_id
+  isActive        Boolean  @default(true) @map("is_active")
+  order           Int      @default(0) // 5 тани тартиблаш учун
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  variants        TrialDemoVariant[]
+
+  @@map("trial_demos")
+}
+
+model TrialDemoVariant {
+  id              String   @id @default(uuid())
+  trialDemoId     String   @map("trial_demo_id") // Қайси TrialDemo га тегишли
+  styleName       String   @map("style_name")    // "Modern", "Classic", "Industrial"
+  afterImageUrl   String   @map("after_image_url") // Cloudinary URL Generated
+  afterPublicId   String?  @map("after_public_id") // Cloudinary public_id
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relations
+  trialDemo       TrialDemo @relation(fields: [trialDemoId], references: [id], onDelete: Cascade)
+
+  @@index([trialDemoId])
+  @@map("trial_demo_variants")
+}
+
+// ─── Gallery Item (До/После галерея) ──────
+// Ҳар бир интерьер лойиҳа учун ҳам бир GalleryItem
+model GalleryItem {
+  id          String   @id @default(uuid())
+  title       String?  // Галерея номи (масалан: "Living Room Design")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  images      GalleryImage[]
+
+  @@map("gallery_items")
+}
+
+// ─── Gallery Image (Расмлари - Until/Before/After) ───────
+// Ҳар бир GalleryItem га камо-камо расм (before, after modern, after minimal, etc.)
+model GalleryImage {
+  id          String   @id @default(uuid())
+  itemId      String   @map("item_id")
+  type        String   // "before" | "after"
+  style       String?  // "modern", "minimal", "scandinavian", etc. (null for before)
+  path        String   // Cloudinary path: /gallery/{item_id}/{type}/{style}/1.jpg
+  publicId    String?  @map("public_id") // Cloudinary public_id
+  order       Int      @default(0) // Ҳар бир стилнинг ичида расмларни тартиблаш
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  item        GalleryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@index([itemId, type, style])
+  @@map("gallery_images")
+}

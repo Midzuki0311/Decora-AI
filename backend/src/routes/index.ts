@@ -3,6 +3,8 @@ import authRoutes from './auth.routes';
 import designRoutes from './design.routes';
 import aiRoutes from './ai.routes';
 import adminRoutes from './admin.routes';
+import trialRoutes from './trial.routes';
+import galleryRoutes from './gallery.routes';
 
 const router = Router();
 
@@ -10,6 +12,8 @@ router.use('/auth', authRoutes);
 router.use('/design', designRoutes);
 router.use('/ai', aiRoutes);
 router.use('/admin', adminRoutes);
+router.use('/trial', trialRoutes);
+router.use('/gallery', galleryRoutes);
 
 // Health check
 router.get('/health', (_req, res) => {

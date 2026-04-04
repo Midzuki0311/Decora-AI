@@ -7,10 +7,7 @@
         "./src/*"
       ]
     },
-    "baseUrl": ".",
-    "types": [
-      "react-native"
-    ]
+    "baseUrl": "."
   },
   "include": [
     "**/*.ts",

@@ -1,292 +1,250 @@
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useState, useEffect } from 'react';
 import { ImageComparison } from '../components/ImageComparison';
+import { User, LogIn, Crown, Sparkles, Image as ImageIcon, ChevronLeft, LayoutGrid } from 'lucide-react';
 
-// Dynamic sliding images from our folders (1 to 6)
-const DYNAMIC_SLIDER_IMAGES = [
-  { before: '/dynamic-images/1/image-before.jpg', after: '/dynamic-images/1/image-after.jpg' },
-  { before: '/dynamic-images/2/image-before.jpg', after: '/dynamic-images/2/image-after.jpg' },
-  { before: '/dynamic-images/3/image-before.jpg', after: '/dynamic-images/3/image-after.jpg' },
-  { before: '/dynamic-images/4/image-before.jpg', after: '/dynamic-images/4/image-after.jpg' },
-  { before: '/dynamic-images/5/image-before.jpg', after: '/dynamic-images/5/image-after.jpg' },
-  { before: '/dynamic-images/6/image-before.jpg', after: '/dynamic-images/6/image-after.jpg' }
+const DEMOS = [
+  {
+    id: 1,
+    title: 'Modern Living Room',
+    before: 'https://images.unsplash.com/photo-1554995207-c18c203602cb?w=800&q=80',
+    thumb: 'https://images.unsplash.com/photo-1554995207-c18c203602cb?w=500&q=80',
+    variants: [
+      { name: 'Minimalist', after: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80' },
+      { name: 'Industrial', after: 'https://images.unsplash.com/photo-1560185127-6ed189bf02f4?w=800&q=80' }
+    ]
+  },
+  {
+    id: 2,
+    title: 'Cozy Bedroom',
+    before: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=800&q=80',
+    thumb: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=500&q=80',
+    variants: [
+      { name: 'Scandinavian', after: 'https://images.unsplash.com/photo-1522771730849-478c255827c8?w=800&q=80' },
+      { name: 'Bohemian', after: 'https://images.unsplash.com/photo-1505693314120-0a273b573c71?w=800&q=80' }
+    ]
+  },
+  {
+    id: 3,
+    title: 'Kitchen Renovation',
+    before: 'https://images.unsplash.com/photo-1556910103-1c02745a828cb?w=800&q=80',
+    thumb: 'https://images.unsplash.com/photo-1556910103-1c02745a828cb?w=500&q=80',
+    variants: [
+      { name: 'Modern', after: 'https://images.unsplash.com/photo-1556909212-d5b604d0c90d?w=800&q=80' }
+    ]
+  }
 ];
 
-// Fallback images specifically for other elements
-const IMAGES = {
-  heroBefore: 'https://lh3.googleusercontent.com/aida-public/AB6AXuArqPowGBLAp8pMsuJrEuujEurP2gxvVLE9xbpce_pURZDiQQR8eTSVbvHPa_pykbgPE_4zF482qlSzKV54omRCMkZxwlEHlsyXngCODEc-7qWwcj_MDv8O_15IzoxKrtV4RnczjSIN4_nQ7XK4aWNJawOmJDHwcApyvrr2yEbYPTp2FXCPM-bTUJkPj5xGHYM7XbWm_CnpjkzIUjIbFrxfJQcbo02U3jG6WD5JYAY_rSsyaXMMQ69u4PrBMHVAsIl0s_FTUHkMjXv1',
-  heroAfter: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBGIr49qEuXKjQgobGExbmSW7f-txrR6hkz46nD54lwJTfB1HaKqG4z--4dJwUlIukF0tn78EpTEk-7FadwE2Ia0_J6ru9WyKHltkcYgIggMcZxzuvM_c3vzbDu22AkA_PQwAJ2oKyT8eLXWpwzg_8fJGwO0t3OzMwc2qVv7AQudXUoNhd-dx8qmjUM8jQvl7Ijh1IAemqZ2GXR1O-0WWjIY45E0Fcfggb_7efA3cM4kaMyNr4GUspoIn4iecyaoCPAg36CpTt8F9QI',
-  spatialAnalysis: 'https://lh3.googleusercontent.com/aida-public/AB6AXuC0pjbez3EViaYRGNZv02B7u7991FmsrsNC7uAjx4CwnsfdRkwrzRaKEUUHbLvg2YK-dNbsWk7cVDM_JhBhI8rLasWBm08TPzTtz87P-bXDjxNWIWj0Tv2sBDPcUD3URm_yjIaqWm7RClwXpsWg2W_e0XOMIZ00FDRBh8Zo7d1OduffP-ve2PSwEwdWmMOLwGRJV1qWJDCN2ufjXbdtbZRqt2o4xCIO-3EVRW5xNdqWpsahIeboBE8m2jGss4xwuvEgYoIw-lkKmb53',
-  chair: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCL1q30hikvS3_1KTqrxkuBhceHZrfsqUxdoyR-m4FD_ToFtSsGn8y05CegG7ICmmNeXET8XsEmPk_z2fbMlnwg3YzwDAyHFrYBGc-pcb7gLQOtLPDAHe8lIZyLdLPOwUVZaWXj2U-VmvTvUJ1s1NuEQHMc8RplrJhqcMembE86U3Vh_jvML_ujhFByMkTwvEVgPVXAwS8dDqrZzpcIejTAInVwsTk0FlJixNDi_EbrgKOgay7rmZBTAf4_C3N8BB3P022fBVSNbFy8',
-  lamp: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBwUQ9b8la0BpMEAUOm4V9QqITnvnLJ54MhPqElRjG0ey702u0z5NpbsHqrWlj7_54jomZ0Vig9YDQ_3Kclc8bkQb0K86mU7YgeaMzBPB3Xmjc7ipB8_7lvEnrBQiQnqFydhuF8OwLGc2qT9y6leDFj3SzfTRdvMMGpGg5rrOd5sQFvlRjBImr9vG8yTI1hIhQSZQvtr479OLE4S6524Ppa1UuoDnY0VrNGZdWlNqDOizazF3VLZJGKW1WJ44Og_VcqG004bJB_A3IO',
-  art: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCPlhcrN9r_7NBSqli5Yl9YkXq5VLendfMVBX0xD9qWxrLjjZ9kKKAha49-AsnQCVCR_aEhAeW6ozJQMOcIu4dPPDEDgcKgDC2GncIVNA2XqapwmziuqRr9yQ95HSSNfWh6NFNk8o3eiSLVUnlBAn9VR447q6naa7enq1Q5i10_ckDSMebRpJq1gafccU9ZM2mK_hOIwigCFWpXbMgFiTfY0_jdmzOr7hg-BjgOlkov1415RmD7wKANzFKNmBln-jKahnQwig1x-Tvv',
-};
-
-const fadeUp: any = {
-  hidden: { opacity: 0, y: 30 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.7 } },
-};
+const FALLBACK_BEFORE = 'https://images.unsplash.com/photo-1513694203232-719a280e022f';
+const FALLBACK_AFTER = 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0';
 
 export default function Landing() {
-  const navigate = useNavigate();
-  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
-
-  // Rotate images every 2 minutes (120,000 ms)
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlideIndex((prev) => (prev + 1) % DYNAMIC_SLIDER_IMAGES.length);
-    }, 120000);
-    return () => clearInterval(timer);
-  }, []);
+  const [activeMode, setActiveMode] = useState<'premium' | 'trial'>('trial');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [credits] = useState(5);
+  const [selectedDemo, setSelectedDemo] = useState<any>(null);
+  const [activeVariant, setActiveVariant] = useState<any>(null);
 
   return (
-    <main className="pt-24 overflow-x-hidden">
-      {/* ───── Hero Section ───── */}
-      <section className="max-w-7xl mx-auto px-8 py-20 lg:py-32 grid lg:grid-cols-2 gap-16 items-center">
-        <motion.div
-          className="z-10"
-          initial="hidden"
-          animate="show"
-          variants={{ show: { transition: { staggerChildren: 0.15 } } }}
-        >
-          <motion.span
-            variants={fadeUp}
-            className="inline-block px-4 py-1.5 rounded-full bg-surface-container-high text-primary text-xs font-label font-medium tracking-[0.1em] mb-6 outline outline-1 outline-outline-variant/15"
-          >
-            AI-POWERED INTERIOR DESIGN
-          </motion.span>
+    <div className="min-h-screen bg-[#050511] text-white overflow-hidden relative font-sans">
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+        <motion.div 
+          animate={{ scale: [1, 1.2, 1], rotate: [0, 90, 0], opacity: [0.5, 0.3, 0.5] }}
+          transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+          className="absolute top-[-10%] left-[-10%] w-[40vw] h-[40vw] rounded-full bg-purple-600/30 blur-[120px]" 
+        />
+        <motion.div 
+          animate={{ scale: [1, 1.3, 1], rotate: [0, -90, 0], opacity: [0.3, 0.5, 0.3] }}
+          transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
+          className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-blue-600/20 blur-[150px]" 
+        />
+      </div>
 
-          <motion.h1
-            variants={fadeUp}
-            className="text-5xl lg:text-7xl font-extrabold font-headline tracking-tighter mb-8 leading-[1.1]"
-          >
-            Transform your room{' '}
-            <span className="hero-gradient-text">instantly</span> with AI
-          </motion.h1>
-
-          <motion.p
-            variants={fadeUp}
-            className="text-on-surface-variant text-xl font-light mb-12 max-w-lg leading-relaxed"
-          >
-            Upload a photo and let our AI redesign your interior in seconds.
-            Experience high-end aesthetics without the architect fees.
-          </motion.p>
-
-          <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-6">
-            <motion.button
-              onClick={() => navigate('/create')}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-gradient-to-r from-primary to-secondary text-on-primary-fixed font-headline font-bold px-10 py-5 rounded-xl neon-glow text-lg flex items-center justify-center gap-2"
-            >
-              Get Started
-              <span className="material-symbols-outlined">arrow_forward</span>
-            </motion.button>
-            <motion.button
-              onClick={() => navigate('/gallery')}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              className="bg-white/5 border border-outline-variant/15 backdrop-blur-md px-10 py-5 rounded-xl font-headline font-bold text-lg hover:bg-white/10 transition-all"
-            >
-              View Showcase
-            </motion.button>
-          </motion.div>
-        </motion.div>
-
-        {/* Hero Image — Before/After Split */}
-        <motion.div
-          className="relative group w-full flex items-center justify-center h-full min-h-[500px]"
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.4, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <div className="absolute -inset-10 bg-primary/20 blur-[100px] rounded-full opacity-30 group-hover:opacity-50 transition-opacity" />
-          <AnimatePresence mode="popLayout">
-            <motion.div
-              key={currentSlideIndex}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 1.5, ease: "easeInOut" }}
-              className="absolute inset-0 w-full h-full flex items-center justify-center p-4"
-            >
-              <ImageComparison
-                beforeSrc={DYNAMIC_SLIDER_IMAGES[currentSlideIndex].before}
-                afterSrc={DYNAMIC_SLIDER_IMAGES[currentSlideIndex].after}
-                beforeLabel="Before"
-                afterLabel="After"
-                className="w-full h-full max-h-full object-contain"
-              />
-            </motion.div>
-          </AnimatePresence>
-        </motion.div>
-      </section>
-
-      {/* ───── Bento Grid Features ───── */}
-      <section className="max-w-7xl mx-auto px-8 py-32">
-        <motion.div
-          className="text-center mb-20"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <h2 className="text-4xl font-extrabold font-headline mb-4 tracking-tight">
-            The Future of <span className="text-tertiary">Interior Design</span>
-          </h2>
-          <p className="text-on-surface-variant max-w-2xl mx-auto">
-            Experience a curated workflow that combines neural rendering with professional spatial planning.
-          </p>
-        </motion.div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Large Card */}
-          <motion.div
-            className="md:col-span-2 bg-surface-container-low rounded-[2rem] p-10 flex flex-col justify-between group overflow-hidden relative"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-[80px] -mr-32 -mt-32" />
-            <div className="relative z-10">
-              <span className="material-symbols-outlined text-4xl text-primary mb-6" style={{ fontVariationSettings: "'FILL' 1" }}>
-                architecture
-              </span>
-              <h3 className="text-3xl font-extrabold font-headline mb-4">Neural Spatial Analysis</h3>
-              <p className="text-on-surface-variant max-w-md text-lg font-light leading-relaxed">
-                Our AI understands depth, lighting, and architectural constraints to ensure designs are both beautiful and physically viable.
-              </p>
-            </div>
-            <div className="mt-12 flex gap-4">
-              <div className="h-48 w-full bg-surface-container-high rounded-xl overflow-hidden">
-                <img src={IMAGES.spatialAnalysis} alt="Spatial analysis" className="w-full h-full object-cover opacity-50" />
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Infinite Styles Card */}
-          <motion.div
-            className="bg-surface-container-high rounded-[2rem] p-10 border border-outline-variant/10 flex flex-col items-start gap-8"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1, duration: 0.6 }}
-          >
-            <div className="p-4 bg-tertiary/10 rounded-2xl">
-              <span className="material-symbols-outlined text-3xl text-tertiary">palette</span>
-            </div>
-            <h3 className="text-2xl font-extrabold font-headline">Infinite Styles</h3>
-            <p className="text-on-surface-variant font-light leading-relaxed">
-              From Scandinavian Minimalism to Industrial Chic, explore curated aesthetic profiles instantly.
-            </p>
-            <div className="w-full space-y-3 pt-4">
-              {['Mid-Century Modern', 'Japandi Bloom', 'Cyberpunk Loft'].map((s) => (
-                <div key={s} className="flex justify-between items-center py-2 border-b border-outline-variant/10 last:border-0">
-                  <span className="text-sm font-label uppercase tracking-widest">{s}</span>
-                  <span className="material-symbols-outlined text-primary text-sm">check_circle</span>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-
-          {/* Instant Gratification Card */}
-          <motion.div
-            className="bg-surface-container-highest rounded-[2rem] p-10 flex flex-col gap-6 items-center text-center"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2, duration: 0.6 }}
-          >
-            <div className="relative w-full aspect-square rounded-2xl bg-surface-container-lowest flex items-center justify-center overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 to-transparent" />
-              <span className="material-symbols-outlined text-7xl text-white/20">upload_file</span>
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[80%] bg-white/5 backdrop-blur-xl border border-white/10 rounded-lg py-3 flex items-center justify-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                <span className="text-xs font-label">Processing Image...</span>
-              </div>
-            </div>
-            <h3 className="text-2xl font-extrabold font-headline">Instant Gratification</h3>
-            <p className="text-on-surface-variant font-light">
-              See your dream home in less than 30 seconds. No waiting for renderings, just magic.
-            </p>
-          </motion.div>
-
-          {/* Shop the Look Card */}
-          <motion.div
-            className="md:col-span-2 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-[2rem] p-10 flex flex-col md:flex-row items-center gap-12 border border-primary/20"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.3, duration: 0.6 }}
-          >
-            <div className="flex-1">
-              <h3 className="text-3xl font-extrabold font-headline mb-4">Shop the Look</h3>
-              <p className="text-on-surface-variant text-lg font-light leading-relaxed mb-6">
-                Our AI doesn't just design; it sources. Instantly get a catalog of furniture and decor pieces that match your new room.
-              </p>
-              <button className="text-primary font-bold flex items-center gap-2 hover:underline">
-                Explore the Marketplace <span className="material-symbols-outlined">north_east</span>
-              </button>
-            </div>
-            <div className="flex gap-4">
-              {[IMAGES.chair, IMAGES.lamp, IMAGES.art].map((src, i) => (
-                <div key={i} className={`w-24 h-24 rounded-2xl bg-surface-container-high overflow-hidden border border-outline-variant/20 ${i === 1 ? 'translate-y-6' : ''}`}>
-                  <img src={src} alt="Furniture" className="w-full h-full object-cover" />
-                </div>
-              ))}
-            </div>
-          </motion.div>
+      <header className="relative z-10 flex justify-between items-center p-6 lg:px-12">
+        <div className="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500 flex items-center gap-2">
+          <Sparkles className="text-blue-400" /> Decora AI
         </div>
-      </section>
+        <div className="flex gap-4 items-center">
+          {isLoggedIn ? (
+             <div className="flex items-center gap-4 bg-white/5 border border-white/10 px-4 py-2 rounded-full backdrop-blur-md">
+                <div className="text-sm flex items-center gap-2">
+                  <Crown size={16} className="text-yellow-400" />
+                  <span className="font-bold">{credits} Credits</span>
+                </div>
+                <div className="w-[1px] h-4 bg-white/20" />
+                <button onClick={() => setIsLoggedIn(false)} className="text-sm text-gray-300 hover:text-white">Logout</button>
+             </div>
+          ) : (
+            <button 
+              onClick={() => setIsLoggedIn(true)} 
+              className="flex items-center gap-2 px-6 py-2.5 bg-white/10 hover:bg-white/20 border border-white/10 rounded-full font-medium transition-all backdrop-blur-md"
+            >
+              <LogIn size={18} /> Войти
+            </button>
+          )}
+        </div>
+      </header>
 
-      {/* ───── CTA Section ───── */}
-      <section className="max-w-7xl mx-auto px-8 py-32 text-center relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[500px] bg-primary/5 blur-[120px] rounded-full -z-10" />
-
-        <motion.h2
-          className="text-5xl lg:text-7xl font-extrabold font-headline tracking-tighter mb-8 max-w-4xl mx-auto leading-tight"
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.7 }}
+      <main className="relative z-10 max-w-6xl mx-auto px-6 py-12 flex flex-col items-center min-h-[80vh]">
+        
+        <motion.div 
+           initial={{ y: -20, opacity: 0 }}
+           animate={{ y: 0, opacity: 1 }}
+           className="flex p-1.5 bg-white/5 backdrop-blur-xl border border-white/10 rounded-full box-shadow-glass mb-16 relative overflow-hidden"
         >
-          Ready to redefine your{' '}
-          <span className="hero-gradient-text">Living Space?</span>
-        </motion.h2>
-
-        <motion.p
-          className="text-on-surface-variant text-xl font-light mb-12 max-w-xl mx-auto"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.2, duration: 0.6 }}
-        >
-          Join 50,000+ homeowners and interior designers using Decora AI to build the future of living.
-        </motion.p>
-
-        <motion.div
-          className="flex flex-col sm:flex-row gap-6 justify-center items-center"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.3, duration: 0.6 }}
-        >
-          <motion.button
-            onClick={() => navigate('/create')}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="bg-gradient-to-r from-primary to-secondary text-on-primary-fixed font-headline font-bold px-12 py-6 rounded-xl neon-glow text-xl"
+          <button 
+            onClick={() => { setActiveMode('trial'); setSelectedDemo(null); }}
+            className={`relative px-8 py-3 rounded-full font-semibold text-lg transition-all duration-300 ${activeMode === 'trial' ? 'text-white' : 'text-gray-400 hover:text-white'}`}
           >
-            Start Your Free Transformation
-          </motion.button>
+            {activeMode === 'trial' && (
+              <motion.div layoutId="mode-bg" className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full -z-10" />
+            )}
+            Попробовать бесплатно
+          </button>
+          <button 
+            onClick={() => { setActiveMode('premium'); setSelectedDemo(null); }}
+            className={`relative px-8 py-3 rounded-full font-semibold text-lg transition-all duration-300 ${activeMode === 'premium' ? 'text-white' : 'text-gray-400 hover:text-white'}`}
+          >
+            {activeMode === 'premium' && (
+              <motion.div layoutId="mode-bg" className="absolute inset-0 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full -z-10 shadow-[0_0_20px_rgba(245,158,11,0.3)]" />
+            )}
+            Premium Mode
+          </button>
         </motion.div>
 
-        <p className="mt-8 text-on-surface-variant/60 text-sm font-label tracking-widest uppercase">
-          No credit card required • AI Credits included
-        </p>
-      </section>
-    </main>
+        <AnimatePresence mode="wait">
+          {activeMode === 'premium' ? (
+            <motion.div 
+              key="premium"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.4 }}
+              className="w-full max-w-2xl flex flex-col items-center justify-center p-12 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-xl shadow-2xl relative"
+            >
+              <Crown className="text-yellow-400 w-20 h-20 mb-6 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
+              <h2 className="text-3xl font-bold mb-4 text-center">Полный доступ к AI Дизайнеру</h2>
+              <p className="text-gray-300 text-center mb-10 max-w-md text-lg">
+                В Premium режиме вы можете загружать свои собственные фотографии интерьера и менять их в любых стилях.
+              </p>
+
+              {isLoggedIn ? (
+                <div className="flex flex-col items-center w-full">
+                   <div className="bg-yellow-500/10 border border-yellow-500/30 p-6 rounded-2xl w-full flex flex-col items-center mb-8">
+                     <span className="text-gray-400 uppercase tracking-widest text-sm font-bold mb-2">Ваш баланс</span>
+                     <span className="text-5xl font-extrabold text-yellow-400 drop-shadow-md">{credits}</span>
+                     <span className="text-gray-300 mt-2 font-medium">кредитов доступно</span>
+                   </div>
+                   <button className="w-full py-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white rounded-xl font-bold text-xl shadow-[0_0_30px_rgba(245,158,11,0.4)] transition-all flex items-center justify-center gap-3">
+                     <ImageIcon /> Загрузить свое фото
+                   </button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center w-full">
+                   <div className="p-6 bg-white/5 border border-red-500/30 text-red-200 rounded-xl mb-8 flex items-center gap-4 w-full justify-center">
+                     <User /> <span>Сначала нужно войти в аккаунт</span>
+                   </div>
+                   <button 
+                     onClick={() => setIsLoggedIn(true)}
+                     className="w-full py-4 bg-white text-black hover:bg-gray-100 rounded-xl font-bold text-xl transition-all shadow-xl"
+                   >
+                     Зарегистрироваться / Войти
+                   </button>
+                </div>
+              )}
+            </motion.div>
+          ) : (
+            <motion.div 
+               key="trial"
+               initial={{ opacity: 0, scale: 0.95 }}
+               animate={{ opacity: 1, scale: 1 }}
+               exit={{ opacity: 0, scale: 0.95 }}
+               transition={{ duration: 0.4 }}
+               className="w-full"
+            >
+              {!selectedDemo ? (
+                <div className="w-full">
+                  <div className="text-center mb-10">
+                    <h2 className="text-4xl font-bold mb-4 drop-shadow-lg text-white">Галерея демо вариантов</h2>
+                    <p className="text-gray-400 text-lg">Выберите одно из тестовых изображений, чтобы увидеть До / После эффект.</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                    {DEMOS.map((demo, i) => (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.1 }}
+                        key={demo.id}
+                        onClick={() => {
+                          setSelectedDemo(demo);
+                          setActiveVariant(demo.variants[0]);
+                        }}
+                        className="group cursor-pointer flex flex-col"
+                      >
+                        <div className="relative overflow-hidden rounded-2xl aspect-[4/3] bg-white/10 border border-white/10 transition-all duration-300 hover:border-blue-500 hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] hover:-translate-y-2">
+                          <img 
+                            src={demo.thumb} 
+                            onError={(e) => (e.currentTarget.src = FALLBACK_BEFORE)}
+                            alt={demo.title} 
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-5">
+                            <h3 className="font-bold text-xl text-white drop-shadow-md">{demo.title}</h3>
+                            <p className="text-blue-300 text-sm">Нажмите чтобы посмотреть</p>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="w-full flex flex-col items-center"
+                >
+                  <div className="w-full max-w-5xl flex flex-col lg:flex-row justify-between items-center mb-8 gap-6">
+                    <button 
+                      onClick={() => setSelectedDemo(null)}
+                      className="flex items-center gap-2 text-gray-400 hover:text-white bg-white/5 border border-white/10 px-6 py-2.5 rounded-full transition-all backdrop-blur-md hover:bg-white/10"
+                    >
+                      <ChevronLeft size={20} /> Назад
+                    </button>
+                    
+                    <h2 className="text-3xl font-bold flex items-center gap-3"><LayoutGrid className="text-blue-400"/> {selectedDemo.title}</h2>
+                  </div>
+
+                  <div className="w-full max-w-5xl bg-white/5 border border-white/10 p-4 lg:p-8 rounded-[2.5rem] backdrop-blur-xl shadow-2xl relative">
+                    
+                    <div className="flex flex-wrap justify-center gap-3 mb-8 relative z-20">
+                      {selectedDemo.variants.map((v: any) => (
+                        <button
+                          key={v.name}
+                          onClick={() => setActiveVariant(v)}
+                          className={`px-6 py-2 rounded-full font-bold transition-all ${activeVariant.name === v.name ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(59,130,246,0.6)]' : 'bg-white/10 text-gray-300 hover:bg-white/20 border border-white/5'}`}
+                        >
+                          {v.name}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="w-full mx-auto relative rounded-[2rem] overflow-hidden bg-black/50 shadow-2xl ring-1 ring-white/10 aspect-video">
+                       <ImageComparison 
+                          beforeSrc={selectedDemo.before || FALLBACK_BEFORE}
+                          afterSrc={activeVariant.after || FALLBACK_AFTER}
+                          beforeLabel="Оригинал"
+                          afterLabel={activeVariant.name}
+                       />
+                    </div>
+                  </div>
+
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+    </div>
   );
 }

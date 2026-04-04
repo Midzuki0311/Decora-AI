@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Image, ScrollView, StyleSheet, Text, TextInput, View, Switch } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TextInput, View, Switch, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { AppHeader } from '../src/components/new-ui/AppHeader';
 import { BottomNav } from '../src/components/new-ui/BottomNav';
@@ -10,11 +10,13 @@ import { useUI } from '../src/components/new-ui/designSystem';
 import { useLanguageStore } from '../src/store/languageStore';
 import { ScreenWrapper, FadeInView } from '../src/components/new-ui/ScreenWrapper';
 import { AnimatedPressable, AnimatedCard } from '../src/components/new-ui/AnimatedPressable';
+import { useScrollStore } from '../src/store/scrollStore';
 
 export default function UploadScreen() {
   const router = useRouter();
   const { colors, isDark } = useUI();
   const { t } = useLanguageStore();
+  const { updateScroll } = useScrollStore();
   const params = useLocalSearchParams<{ photo?: string; roomId?: string }>();
   const [selectedRoom, setSelectedRoom] = useState(Number(params.roomId) || 1);
   const [selectedStyle, setSelectedStyle] = useState<typeof STYLE_NAMES[number]>('Modern');
@@ -27,6 +29,11 @@ export default function UploadScreen() {
 
   const room = useMemo(() => demoRooms.find((r) => r.id === selectedRoom) ?? demoRooms[0], [selectedRoom]);
   const hasPhoto = !!params.photo;
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const scrollY = event.nativeEvent.contentOffset.y;
+    updateScroll(scrollY);
+  };
 
   // Auto-analyze when style changes
   useEffect(() => {
@@ -66,7 +73,7 @@ export default function UploadScreen() {
       <AppHeader title={t.createDesign} showBack />
 
       <ScreenWrapper>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} onScroll={handleScroll} scrollEventThrottle={16}>
           <FadeInView delay={40}>
             <AnimatedCard
               style={[styles.previewCard, { borderColor: colors.border, backgroundColor: colors.surface }]}

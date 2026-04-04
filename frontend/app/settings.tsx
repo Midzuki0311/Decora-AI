@@ -6,6 +6,7 @@ import { AppHeader } from '../src/components/new-ui/AppHeader';
 import { BottomNav } from '../src/components/new-ui/BottomNav';
 import { useUI } from '../src/components/new-ui/designSystem';
 import { useLanguageStore } from '../src/store/languageStore';
+import { useAuthStore } from '../src/store/authStore';
 import { ScreenWrapper, FadeInView } from '../src/components/new-ui/ScreenWrapper';
 import { AnimatedPressable } from '../src/components/new-ui/AnimatedPressable';
 import Animated, {
@@ -40,6 +41,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { colors, isDark } = useUI();
   const { t } = useLanguageStore();
+  const { user } = useAuthStore();
   const [highRes, setHighRes] = useState(true);
   const [notifs, setNotifs] = useState(true);
   const used = 12, total = 20;
@@ -118,10 +120,20 @@ export default function SettingsScreen() {
           <FadeInView delay={40}>
             <View style={s.avatarWrap}>
               <View style={[s.avatarRing, { backgroundColor: colors.primary }]}>
-                <Image source={{ uri: 'https://i.pravatar.cc/150?img=32' }} style={s.avatar} />
+                {user?.avatarUrl ? (
+                  <Image source={{ uri: user.avatarUrl }} style={s.avatar} />
+                ) : (
+                  <View style={[s.avatar, { backgroundColor: colors.primary + '30', alignItems: 'center', justifyContent: 'center' }]}>
+                    <Ionicons name="person" size={38} color={colors.primary} />
+                  </View>
+                )}
               </View>
-              <Text style={[s.name, { color: colors.text }]}>Alex Thompson</Text>
-              <Text style={[s.role, { color: colors.muted }]}>INTERIOR ENTHUSIAST</Text>
+              {user?.username ? (
+                <Text style={[s.name, { color: colors.text }]}>{user.username}</Text>
+              ) : null}
+              {user?.email ? (
+                <Text style={[s.role, { color: colors.muted }]}>{user.email}</Text>
+              ) : null}
             </View>
           </FadeInView>
 
