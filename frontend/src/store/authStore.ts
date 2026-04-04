@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import { User } from '../types';
 import { api } from '../api/client';
+import { useDesignStore } from './designStore';
 
 const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'auth_user';
@@ -56,6 +57,10 @@ export const useAuthStore = create<AuthState>((set) => ({
           isAuthenticated: true,
           isLoading: false,
         });
+        // Reset design store on login to prevent image persistence between users
+        useDesignStore.getState().reset();
+        // Load credits for new session
+        setTimeout(() => useDesignStore.getState().loadCredits(), 500);
       }
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
@@ -76,6 +81,10 @@ export const useAuthStore = create<AuthState>((set) => ({
           isAuthenticated: true,
           isLoading: false,
         });
+        // Reset design store on register to prevent image persistence
+        useDesignStore.getState().reset();
+        // Load credits for new user (starts with 3 free credits from backend)
+        setTimeout(() => useDesignStore.getState().loadCredits(), 500);
       }
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
@@ -83,6 +92,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
+    // Reset design store on logout to clear all data for next user
+    useDesignStore.getState().reset();
     await SecureStore.deleteItemAsync(TOKEN_KEY).catch(() => {});
     await SecureStore.deleteItemAsync(USER_KEY).catch(() => {});
     set({

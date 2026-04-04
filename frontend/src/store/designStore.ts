@@ -286,6 +286,10 @@ export const useDesignStore = create<DesignState>((set, get) => ({
       regeneratingStyle: null,
       error: null,
       isMock: false,
+      credits: null,
+      freeCredits: null,
+      paidCredits: null,
+      possibleGenerations: null,
     });
   },
 

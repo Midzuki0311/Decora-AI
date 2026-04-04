@@ -22,7 +22,7 @@ export default function HomeScreen() {
   const { updateScroll } = useScrollStore();
 
   const handleStartRedesign = () => {
-    router.push('/camera' as any);
+    router.push('/createDesign' as any);
   };
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -39,7 +39,7 @@ export default function HomeScreen() {
       backgroundColor: '#3B82F6',
       badgeColor: '#1E3A8A',
       badgeText: 'Featured',
-      onPress: () => router.push('/camera' as any),
+      onPress: () => router.push('/createDesign' as any),
     },
     {
       id: 'budgetPlanner',
