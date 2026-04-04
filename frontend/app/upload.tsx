@@ -11,6 +11,7 @@ import { useLanguageStore } from '../src/store/languageStore';
 import { ScreenWrapper, FadeInView } from '../src/components/new-ui/ScreenWrapper';
 import { AnimatedPressable, AnimatedCard } from '../src/components/new-ui/AnimatedPressable';
 import { useScrollStore } from '../src/store/scrollStore';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function UploadScreen() {
   const router = useRouter();
@@ -26,9 +27,14 @@ export default function UploadScreen() {
   const [imageName, setImageName] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<'analyzing' | 'generating' | 'uploading'>('analyzing');
+  const [uploadedPhoto, setUploadedPhoto] = useState(params.photo || '');
 
   const room = useMemo(() => demoRooms.find((r) => r.id === selectedRoom) ?? demoRooms[0], [selectedRoom]);
-  const hasPhoto = !!params.photo;
+  const hasPhoto = !!uploadedPhoto;
+
+  const handleClearPhoto = () => {
+    setUploadedPhoto('');
+  };
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const scrollY = event.nativeEvent.contentOffset.y;
@@ -62,7 +68,7 @@ export default function UploadScreen() {
         params: { 
           room: String(selectedRoom), 
           style: selectedStyle,
-          customImage: params.photo || ''
+          customImage: uploadedPhoto || ''
         } 
       } as any);
     }, 3500);
@@ -75,19 +81,35 @@ export default function UploadScreen() {
       <ScreenWrapper>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} onScroll={handleScroll} scrollEventThrottle={16}>
           <FadeInView delay={40}>
-            <AnimatedCard
-              style={[styles.previewCard, { borderColor: colors.border, backgroundColor: colors.surface }]}
-              onLongPress={() => hasPhoto ? setViewUri(params.photo!) : setViewSource(room.before)}
-            >
-              {hasPhoto ? (
-                <Image source={{ uri: params.photo }} style={styles.previewImage} resizeMode="cover" />
-              ) : (
-                <Image source={room.before} style={styles.previewImage} resizeMode="cover" />
+            <View style={styles.previewSection}>
+              <AnimatedCard
+                style={[styles.previewCard, { borderColor: colors.border, backgroundColor: colors.surface }]}
+                onLongPress={() => hasPhoto ? setViewUri(uploadedPhoto!) : setViewSource(room.before)}
+              >
+                {hasPhoto ? (
+                  <Image source={{ uri: uploadedPhoto }} style={styles.previewImage} resizeMode="cover" />
+                ) : (
+                  <Image source={room.before} style={styles.previewImage} resizeMode="cover" />
+                )}
+                <View style={styles.previewTagWrap}>
+                  <Text style={styles.previewTag}>{hasPhoto ? t.yourPhoto : t.originalSpace}</Text>
+                </View>
+              </AnimatedCard>
+              
+              {hasPhoto && (
+                <View style={styles.previewActions}>
+                  <AnimatedPressable
+                    onPress={handleClearPhoto}
+                    style={[styles.clearBtn, { backgroundColor: colors.primary }]}
+                    pressScale={0.92}
+                  >
+                    <MaterialCommunityIcons name="delete" size={18} color="#fff" />
+                    <Text style={styles.clearBtnText}>{t.removeImage || 'Clear Image'}</Text>
+                  </AnimatedPressable>
+                  <Text style={[styles.previewHint, { color: colors.muted }]}>💡 {t.longPressToPreview || 'Long-press to preview full size'}</Text>
+                </View>
               )}
-              <View style={styles.previewTagWrap}>
-                <Text style={styles.previewTag}>{hasPhoto ? t.yourPhoto : t.originalSpace}</Text>
-              </View>
-            </AnimatedCard>
+            </View>
           </FadeInView>
 
           <FadeInView delay={120}>
@@ -183,10 +205,16 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   content: { paddingHorizontal: 24, paddingTop: 10, paddingBottom: 140, gap: 16 },
 
+  previewSection: { gap: 10 },
   previewCard: { borderRadius: 22, overflow: 'hidden', borderWidth: 1, position: 'relative' },
   previewImage: { width: '100%', height: 320 },
   previewTagWrap: { position: 'absolute', left: 14, bottom: 14 },
   previewTag: { backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, fontWeight: '700', fontSize: 12, overflow: 'hidden' },
+  
+  previewActions: { gap: 8 },
+  clearBtn: { height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  clearBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  previewHint: { fontSize: 12, paddingHorizontal: 4, marginTop: 2 },
 
   sectionTitle: { fontSize: 22, fontWeight: '800', marginBottom: 8 },
   styleRow: { gap: 10, marginBottom: 4 },
