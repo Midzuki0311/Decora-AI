@@ -49,32 +49,33 @@ export class FalProvider implements AIProvider {
             instruction += ` Additional details: ${additionalInstructions}`;
         }
 
-        // Tweak image dimensions: raw 4K phone photos make FLUX very slow (~2 mins).
-        // Best approach: use Cloudinary on-the-fly resizing before feeding to fal.ai.
+        // ── FAST MODE: Minimal resources ────────────────────────────────────
+        // Use very small images (512px) and minimal inference steps for fast generation
         let optimizedImageUrl = imageUrl;
         if (imageUrl.includes('/upload/')) {
-            const sizeLimit = mode === 'final' ? '1920' : '1024';
-            optimizedImageUrl = imageUrl.replace('/upload/', `/upload/w_${sizeLimit},c_limit,q_auto/`);
+            // Always use 512px for speed (70% smaller than 1024, 85% smaller than 1920)
+            optimizedImageUrl = imageUrl.replace('/upload/', `/upload/w_512,c_limit,q_auto/`);
         }
 
-        logger.info(`[FalProvider] Generating ${mode} for style "${style.name}"`);
+        logger.info(`[FalProvider] Generating ${mode} for style "${style.name}" (FAST MODE)`);
         logger.info(`[FalProvider] Prompt: ${instruction.substring(0, 100)}...`);
 
         try {
             // fal.ai expects an image_url and an array of controlnets
+            // MINIMIZED: fewer steps, lower guidance, weak ControlNet to reduce computation
             const payload = {
                 prompt: instruction,
                 image_url: optimizedImageUrl,
-                strength: 0.85, // How much to transform the image (0.0 to 1.0)
+                strength: 0.35, // Very low transformation (was 0.85) - minimal processing
                 controlnets: [
                     {
                         path: "https://huggingface.co/InstantX/FLUX.1-dev-Controlnet-Canny/resolve/main/diffusion_pytorch_model.safetensors",
                         control_image_url: optimizedImageUrl,
-                        conditioning_scale: 0.7
+                        conditioning_scale: 0.15  // Very weak ControlNet (was 0.7) - less computation
                     }
                 ],
-                num_inference_steps: mode === 'final' ? 25 : 15,
-                guidance_scale: 3.5,
+                num_inference_steps: 8,  // Minimal steps - was 25/15 (70% reduction)
+                guidance_scale: 1.5,     // Very low guidance - was 3.5 (57% reduction)
                 sync_mode: true
             };
 
@@ -91,8 +92,14 @@ export class FalProvider implements AIProvider {
                 const errorData = await response.text();
                 logger.error(`[FalProvider] HTTP Error ${response.status}: ${errorData}`);
 
-                if (response.status === 401 || response.status === 403) {
+                if (response.status === 401) {
                     throw new AppError('Invalid FAL_KEY. Check your .env file.', 500);
+                }
+                if (response.status === 403) {
+                    if (/exhausted balance|user is locked|billing|top up/i.test(errorData)) {
+                        throw new AIBillingError('Fal.ai balance exhausted. Please top up your account or wait and retry.');
+                    }
+                    throw new AppError('Fal.ai access denied. Check FAL_KEY permissions.', 500);
                 }
                 if (response.status === 402) {
                     throw new AIBillingError('Fal.ai balance exhausted. Please top up your account.');

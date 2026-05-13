@@ -251,7 +251,7 @@ export async function removeObject(
 
     try {
         // We'll use Fal.ai for the actual image manipulation
-         const apiKey = (await import('../config')).config.fal?.apiKey;
+         const apiKey = (await import('../config/index.js')).config.fal?.apiKey;
          if (!apiKey) throw new AppError('FAL API key not configured for object removal', 500);
 
          const FAL_ENDPOINT = 'https://fal.run/fal-ai/flux-general/image-to-image';
@@ -298,7 +298,7 @@ export async function removeObject(
          const resultUrl = data.images[0].url;
          
          // Upload to Cloudinary
-         const { uploadUrlToCloudinary } = await import('./cloudinary.service');
+         const { uploadUrlToCloudinary } = await import('./cloudinary.service.js');
          const cloudResult = await uploadUrlToCloudinary(resultUrl, 'ai-interior/removals');
          
          return cloudResult.url;

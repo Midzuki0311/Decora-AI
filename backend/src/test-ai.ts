@@ -13,7 +13,7 @@ import Replicate from 'replicate';
 import { v2 as cloudinary } from 'cloudinary';
 
 // ─── Config ───────────────────────────────
-const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || '';
+const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN || process.env.REPLICATE_API || '';
 const CLOUDINARY_CLOUD = process.env.CLOUDINARY_CLOUD_NAME || '';
 const CLOUDINARY_KEY = process.env.CLOUDINARY_API_KEY || '';
 const CLOUDINARY_SECRET = process.env.CLOUDINARY_API_SECRET || '';

@@ -5,6 +5,9 @@ import {
   Text,
   ScrollView,
   StatusBar,
+  Image,
+  Alert,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -20,27 +23,57 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatedPressable } from '../src/components/new-ui/AnimatedPressable';
 import { ScreenWrapper } from '../src/components/new-ui/ScreenWrapper';
 import { AppHeader } from '../src/components/new-ui/AppHeader';
+import { BottomNav } from '../src/components/new-ui/BottomNav';
+import { useDesignStore } from '../src/store/designStore';
 
 const SCREEN_WIDTH = require('react-native').Dimensions.get('window').width;
+
+// AI Providers available - ONLY GEMINI
+const AI_PROVIDERS = [
+  { id: 'gemini', name: 'Google Gemini', icon: '✨', color: '#4285F4', description: 'Fast & free' },
+];
 
 export default function CreateDesignScreen() {
   const router = useRouter();
   const { colors, isDark } = useUI();
   const { t } = useLanguageStore();
+  const { setOriginalImage } = useDesignStore();
   const insets = useSafeAreaInsets();
-  const [selectedMode, setSelectedMode] = useState<'design' | 'chat' | null>(null);
+  const [selectedMode, setSelectedMode] = useState<'design' | null>('design');
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedAiProvider, setSelectedAiProvider] = useState('gemini');
 
-  const takePhoto = async (mode: 'design' | 'chat') => {
+  const handleProviderSelect = (providerId: string) => {
+    setSelectedAiProvider(providerId);
+    triggerActionSheet(providerId);
+  };
+
+  const triggerActionSheet = (providerId: string) => {
+    Alert.alert(
+      '📸 Upload Image',
+      'Choose how you want to provide your room image:',
+      [
+        { text: '📷 Take Photo', onPress: () => takePhoto() },
+        { text: '📁 Gallery', onPress: () => pickFromLibrary() },
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
+  };
+
+  const takePhoto = async () => {
     try {
       setIsLoading(true);
+      console.log('[CreateDesign] Requesting camera permissions...');
+      
       const permission = await ImagePicker.requestCameraPermissionsAsync();
 
       if (!permission.granted) {
+        Alert.alert('Permission required', 'Camera permission is needed to take photos');
         setIsLoading(false);
         return;
       }
 
+      console.log('[CreateDesign] Opening camera...');
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [4, 5],
@@ -48,30 +81,32 @@ export default function CreateDesignScreen() {
       });
 
       if (!result.canceled && result.assets[0]) {
-        if (mode === 'design') {
-          // Go to design upload screen
-          router.push({
-            pathname: '/upload',
-            params: { photo: result.assets[0].uri, mode: 'design' },
-          });
-        } else {
-          // Go to AI chat screen
-          router.push({
-            pathname: '/aiChat',
-            params: { photo: result.assets[0].uri },
-          });
-        }
+        console.log('[CreateDesign] Photo captured:', result.assets[0].uri);
+        // Save image to store and navigate directly to design selection
+        setOriginalImage(result.assets[0].uri);
+        router.push('/designSelection');
       }
     } catch (error) {
-      console.error('Camera error:', error);
+      console.error('[CreateDesign] Camera error:', error);
+      Alert.alert('Error', 'Failed to capture photo');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const pickFromLibrary = async (mode: 'design' | 'chat') => {
+  const pickFromLibrary = async () => {
     try {
       setIsLoading(true);
+      console.log('[CreateDesign] Opening image library...');
+      
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (!permission.granted) {
+        Alert.alert('Permission required', 'Gallery permission is needed to pick images');
+        setIsLoading(false);
+        return;
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         allowsEditing: true,
         aspect: [4, 5],
@@ -79,24 +114,25 @@ export default function CreateDesignScreen() {
       });
 
       if (!result.canceled && result.assets[0]) {
-        if (mode === 'design') {
-          // Go to design upload screen
-          router.push({
-            pathname: '/upload',
-            params: { photo: result.assets[0].uri, mode: 'design' },
-          });
-        } else {
-          // Go to AI chat screen
-          router.push({
-            pathname: '/aiChat',
-            params: { photo: result.assets[0].uri },
-          });
-        }
+        console.log('[CreateDesign] Image selected:', result.assets[0].uri);
+        // Save image to store and navigate directly to design selection
+        setOriginalImage(result.assets[0].uri);
+        router.push('/designSelection');
       }
     } catch (error) {
-      console.error('Gallery error:', error);
+      console.error('[CreateDesign] Gallery error:', error);
+      Alert.alert('Error', 'Failed to pick image');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleBackPress = () => {
+    console.log('[CreateDesign] Back button pressed');
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.push('/' as any);
     }
   };
 
@@ -106,144 +142,63 @@ export default function CreateDesignScreen() {
 
       <ScreenWrapper>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Step 1: Select Mode */}
           <Animated.View entering={FadeInDown.duration(400)}>
-            <AppHeader title={t.createDesign || 'Create Design'} showBack />
+            <AppHeader 
+              title={t.createDesign || 'Choose AI Engine'} 
+              showBack 
+              onBack={handleBackPress}
+            />
           </Animated.View>
 
+          {/* AI Providers Section */}
           <Animated.View entering={FadeInDown.duration(500)} style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              {selectedMode ? '📸 Choose Image Source' : '🎯 Select Mode'}
-            </Text>
-
-            {!selectedMode ? (
-              // Mode Selection
-              <View style={styles.modeGrid}>
-                <Animated.View entering={FadeInDown.duration(600)}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>⚙️ Select AI Provider</Text>
+            <Text style={[styles.subsectionDesc, { color: colors.muted }]}>Choose your AI generation engine to start designing</Text>
+            
+            <View style={styles.providersGrid}>
+              {AI_PROVIDERS.map((provider, idx) => (
+                <Animated.View key={provider.id} entering={FadeInDown.duration(600 + idx * 50)}>
                   <AnimatedPressable
-                    onPress={() => setSelectedMode('design')}
-                    style={[styles.modeCard, { backgroundColor: colors.surface, borderColor: colors.primary }]}
-                    pressScale={0.95}
+                    onPress={() => handleProviderSelect(provider.id)}
+                    style={[
+                      styles.providerCard,
+                      {
+                        backgroundColor: provider.color,
+                        borderColor: provider.color,
+                        borderWidth: 2,
+                      },
+                    ]}
+                    pressScale={0.92}
                   >
-                    <View style={[styles.modeIcon, { backgroundColor: '#3B82F6' }]}>
-                      <Ionicons name="sparkles" size={32} color="#fff" />
-                    </View>
-                    <Text style={[styles.modeName, { color: colors.text }]}>AI Design Generator</Text>
-                    <Text style={[styles.modeDescription, { color: colors.muted }]}>
-                      Transform your space with AI-powered designs
+                    <Text style={styles.providerIcon}>{provider.icon}</Text>
+                    <Text style={[styles.providerName, { color: '#fff' }]}>
+                      {provider.name}
                     </Text>
-                    <View style={styles.modeFeatures}>
-                      <Text style={[styles.featureText, { color: colors.muted }]}>✓ 5 style variations</Text>
-                      <Text style={[styles.featureText, { color: colors.muted }]}>✓ Full 4K rendering</Text>
-                      <Text style={[styles.featureText, { color: colors.muted }]}>✓ Material matching</Text>
-                    </View>
+                    <Text style={[styles.providerDesc, { color: 'rgba(255,255,255,0.8)' }]}>
+                      {provider.description}
+                    </Text>
                   </AnimatedPressable>
                 </Animated.View>
-
-                <Animated.View entering={FadeInDown.duration(700)}>
-                  <AnimatedPressable
-                    onPress={() => setSelectedMode('chat')}
-                    style={[styles.modeCard, { backgroundColor: colors.surface, borderColor: colors.primary }]}
-                    pressScale={0.95}
-                  >
-                    <View style={[styles.modeIcon, { backgroundColor: '#8B5CF6' }]}>
-                      <MaterialCommunityIcons name="chat-outline" size={32} color="#fff" />
-                    </View>
-                    <Text style={[styles.modeName, { color: colors.text }]}>AI Chat & Prompts</Text>
-                    <Text style={[styles.modeDescription, { color: colors.muted }]}>
-                      Chat with AI and create custom prompts
-                    </Text>
-                    <View style={styles.modeFeatures}>
-                      <Text style={[styles.featureText, { color: colors.muted }]}>✓ Real-time chat</Text>
-                      <Text style={[styles.featureText, { color: colors.muted }]}>✓ Custom prompts</Text>
-                      <Text style={[styles.featureText, { color: colors.muted }]}>✓ Save favorites</Text>
-                    </View>
-                  </AnimatedPressable>
-                </Animated.View>
-              </View>
-            ) : (
-              // Image Source Selection
-              <>
-                <View style={styles.imageSourceGrid}>
-                  <Animated.View entering={FadeInDown.duration(600)}>
-                    <AnimatedPressable
-                      onPress={() => takePhoto(selectedMode)}
-                      disabled={isLoading}
-                      style={[
-                        styles.imageSourceCard,
-                        { backgroundColor: colors.primary, opacity: isLoading ? 0.6 : 1 },
-                      ]}
-                      pressScale={0.93}
-                    >
-                      <Ionicons name="camera" size={40} color="#fff" />
-                      <Text style={[styles.imageSourceTitle, { color: '#fff' }]}>Take Photo</Text>
-                      <Text style={[styles.imageSourceSub, { color: 'rgba(255,255,255,0.8)' }]}>
-                        Use device camera
-                      </Text>
-                    </AnimatedPressable>
-                  </Animated.View>
-
-                  <Animated.View entering={FadeInDown.duration(700)}>
-                    <AnimatedPressable
-                      onPress={() => pickFromLibrary(selectedMode)}
-                      disabled={isLoading}
-                      style={[
-                        styles.imageSourceCard,
-                        { borderColor: colors.primary, borderWidth: 2, opacity: isLoading ? 0.6 : 1 },
-                      ]}
-                      pressScale={0.93}
-                    >
-                      <Ionicons name="image" size={40} color={colors.primary} />
-                      <Text style={[styles.imageSourceTitle, { color: colors.text }]}>Choose from Library</Text>
-                      <Text style={[styles.imageSourceSub, { color: colors.muted }]}>
-                        Select existing photo
-                      </Text>
-                    </AnimatedPressable>
-                  </Animated.View>
-                </View>
-
-                <AnimatedPressable
-                  onPress={() => setSelectedMode(null)}
-                  style={[styles.backButton, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}
-                  pressScale={0.96}
-                >
-                  <Ionicons name="arrow-back" size={18} color={colors.text} />
-                  <Text style={[styles.backButtonText, { color: colors.text }]}>Back to Mode Selection</Text>
-                </AnimatedPressable>
-              </>
-            )}
+              ))}
+            </View>
           </Animated.View>
 
-          {/* Help Section */}
-          {!selectedMode && (
-            <Animated.View entering={FadeInDown.duration(800)} style={styles.helpSection}>
-              <Text style={[styles.helpTitle, { color: colors.text }]}>💡 Which mode should I choose?</Text>
-              <View style={styles.helpItem}>
-                <Text style={[styles.helpLabel, { color: colors.text }]}>Design Generator:</Text>
-                <Text style={[styles.helpText, { color: colors.muted }]}>
-                  Quick automated transformations with multiple style options. Best for instant ideas.
-                </Text>
-              </View>
-              <View style={styles.helpItem}>
-                <Text style={[styles.helpLabel, { color: colors.text }]}>AI Chat:</Text>
-                <Text style={[styles.helpText, { color: colors.muted }]}>
-                  Interactive chat for detailed design discussions and custom prompt creation.
-                </Text>
-              </View>
-            </Animated.View>
-          )}
         </ScrollView>
       </ScreenWrapper>
+
+      <BottomNav active="design" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  content: { paddingHorizontal: 24, paddingTop: 10, paddingBottom: 40, gap: 24 },
+  content: { paddingHorizontal: 24, paddingTop: 10, paddingBottom: 80, gap: 24 },
 
   section: { gap: 16 },
   sectionTitle: { fontSize: 22, fontWeight: '800', marginBottom: 8 },
+  subsectionTitle: { fontSize: 18, fontWeight: '800', marginBottom: 4 },
+  subsectionDesc: { fontSize: 12, marginBottom: 12 },
 
   // Mode Selection
   modeGrid: { gap: 16 },
@@ -261,7 +216,6 @@ const styles = StyleSheet.create({
   featureText: { fontSize: 12, fontWeight: '600' },
 
   // Image Source Selection
-  imageSourceGrid: { gap: 12 },
   imageSourceCard: {
     borderRadius: 16,
     padding: 24,
@@ -273,6 +227,90 @@ const styles = StyleSheet.create({
   imageSourceTitle: { fontSize: 16, fontWeight: '800' },
   imageSourceSub: { fontSize: 12, textAlign: 'center' },
 
+  // Providers
+  providersGrid: {
+    gap: 12,
+    marginTop: 8,
+  },
+  providerCard: {
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    minHeight: 140,
+  },
+  providerIcon: { fontSize: 48 },
+  providerName: { fontSize: 18, fontWeight: '800' },
+  providerDesc: { fontSize: 12 },
+
+  // Sample Images
+  samplesRow: { gap: 12, paddingEnd: 12 },
+  sampleCard: {
+    width: 140,
+    height: 180,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 2,
+  },
+  sampleImage: { width: '100%', height: '100%' },
+  sampleOverlay: { 
+    position: 'absolute', 
+    bottom: 0, 
+    left: 0, 
+    right: 0, 
+    paddingVertical: 8, 
+    paddingHorizontal: 8,
+    alignItems: 'center',
+  },
+  sampleName: { color: '#fff', fontWeight: '800', fontSize: 12, textAlign: 'center' },
+
+  // AI Providers Grid
+  providersGrid: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    justifyContent: 'space-between',
+  },
+  providerCard: {
+    width: (SCREEN_WIDTH - 48 - 12) / 2,
+    marginBottom: 12,
+    minHeight: 140,
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    position: 'relative',
+    flexDirection: 'column',
+  },
+  providerIcon: { fontSize: 32 },
+  providerName: { fontSize: 14, fontWeight: '800', textAlign: 'center', maxWidth: '100%' },
+  providerDesc: { fontSize: 11, textAlign: 'center', maxWidth: '100%' },
+  checkmark: { position: 'absolute', top: 8, right: 8 },
+
+  // Chat Bots Grid
+  chatBotsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  chatBotCard: {
+    width: (SCREEN_WIDTH - 48 - 12 * 2) / 3, // 3 cols
+    marginBottom: 12,
+    minHeight: 100,
+    borderRadius: 16,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    position: 'relative',
+    flexDirection: 'column',
+  },
+  botIcon: { fontSize: 24 },
+  botName: { fontSize: 12, fontWeight: '800', textAlign: 'center', maxWidth: '100%' },
+  botCheckmark: { position: 'absolute', top: 6, right: 6 },
+
+  // Back Button
   backButton: {
     borderRadius: 16,
     paddingHorizontal: 16,

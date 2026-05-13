@@ -130,7 +130,7 @@ export const useDesignStore = create<DesignState>((set, get) => ({
       });
 
       const previews = generateRes.data.previews || [];
-      const images: GeneratedImage[] = previews.map((p: any, i: number) => ({
+      const images: GeneratedImage[] = previews.slice(0, 1).map((p: any, i: number) => ({  // Only take first image
         id: `${projectId}-${i}`,
         url: p.imageUrl || p.imagePath || '',
         style: p.styleName || selectedStyle,
@@ -138,28 +138,16 @@ export const useDesignStore = create<DesignState>((set, get) => ({
         createdAt: new Date().toISOString(),
       }));
 
-      // If we got fewer than 4 images, duplicate to fill grid
-      while (images.length < 4) {
-        const base = images[images.length - 1] || {
-          url: '',
-          style: selectedStyle,
-          prompt: customPrompt,
-          createdAt: new Date().toISOString(),
-        };
-        images.push({
-          ...base,
-          id: `${projectId}-fill-${images.length}`,
-        });
-      }
+      // Single image mode - no duplication for grid filling
 
-      set({ generatedImages: images.slice(0, 4), isGenerating: false });
+      set({ generatedImages: images, isGenerating: false });
 
       // Save to gallery
       const { gallery, uploadedPreview } = get();
       const galleryItem: GalleryItem = {
         id: projectId,
         originalUrl: uploadedPreview || '',
-        generatedImages: images.slice(0, 4),
+        generatedImages: images,  // Use single image instead of 4
         style: selectedStyle,
         prompt: customPrompt,
         createdAt: new Date().toISOString(),
@@ -198,7 +186,7 @@ export const useDesignStore = create<DesignState>((set, get) => ({
       });
 
       const previews = generateRes.data.previews || [];
-      const images: GeneratedImage[] = previews.map((p: any, i: number) => ({
+      const images: GeneratedImage[] = previews.slice(0, 1).map((p: any, i: number) => ({  // Only take first image
         id: `${projectId}-regen-${i}-${Date.now()}`,
         url: p.imageUrl || p.imagePath || '',
         style: p.styleName || selectedStyle,
@@ -206,20 +194,9 @@ export const useDesignStore = create<DesignState>((set, get) => ({
         createdAt: new Date().toISOString(),
       }));
 
-      while (images.length < 4) {
-        const base = images[images.length - 1] || {
-          url: '',
-          style: selectedStyle,
-          prompt: customPrompt,
-          createdAt: new Date().toISOString(),
-        };
-        images.push({
-          ...base,
-          id: `${projectId}-regen-fill-${images.length}`,
-        });
-      }
+      // Single image mode - no duplication for grid filling
 
-      set({ generatedImages: images.slice(0, 4), isGenerating: false });
+      set({ generatedImages: images, isGenerating: false });
     } catch (err: any) {
       set({
         error: err.message || 'Regeneration failed. Please try again.',

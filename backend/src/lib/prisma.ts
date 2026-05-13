@@ -1,10 +1,21 @@
 import { PrismaClient } from '../generated/prisma/client';
-import { PrismaLibSql } from '@prisma/adapter-libsql';
+import { PrismaD1 } from '@prisma/adapter-d1';
 import logger from '../utils/logger';
 
-// LibSQL adapter for SQLite
-const dbUrl = process.env.DATABASE_URL || 'file:./prisma/dev.db';
-const adapter = new PrismaLibSql({ url: dbUrl });
+// Cloudflare D1 adapter configuration
+const getAdapter = () => {
+  const globalCtx = globalThis as any;
+  if (process.env.NODE_ENV === 'production' && globalCtx.db) {
+    // Production: use Cloudflare Workers D1 binding
+    return new PrismaD1(globalCtx.db);
+  }
+  // Development: use local SQLite via LibSQL
+  const { PrismaLibSql } = require('@prisma/adapter-libsql');
+  const dbUrl = process.env.DATABASE_URL || 'file:./dev.db';
+  return new PrismaLibSql({ url: dbUrl });
+};
+
+const adapter = getAdapter();
 
 // Global Prisma instance — бир марта яратилади, қайта ишлатилади
 const globalForPrisma = globalThis as unknown as {
@@ -13,9 +24,7 @@ const globalForPrisma = globalThis as unknown as {
 
 export const prisma =
   globalForPrisma.prisma ??
-  new PrismaClient({
-    adapter,
-  });
+  new PrismaClient({ adapter });
 
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;

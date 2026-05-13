@@ -1,12 +1,25 @@
 import { create } from 'zustand';
-import { DesignStyle, PreviewImage, Project, AIModel } from '../types';
+import {
+  DesignStyle,
+  PreviewImage,
+  Project,
+  AIModel,
+  ColorPalette,
+  RemovalOptions,
+  StyleParameters,
+  ColorAnalysis,
+} from '../types';
 import { api, SERVER_URL } from '../api/client';
 import { useAuthStore } from './authStore';
 
-/** Convert relative /uploads/... paths to full http://... URLs */
+/** Convert relative /uploads/... paths to full http://... URLs. Skip data URIs. */
 function fullUrl(urlOrPath: string | undefined | null): string | undefined {
   if (!urlOrPath) return undefined;
+  // Data URIs are already valid URLs — don't prefix them with SERVER_URL
+  if (urlOrPath.startsWith('data:')) return urlOrPath;
+  // Absolute URLs are already valid
   if (urlOrPath.startsWith('http')) return urlOrPath;
+  // Relative paths need SERVER_URL prefix
   return `${SERVER_URL}${urlOrPath}`;
 }
 
@@ -33,6 +46,19 @@ interface DesignState {
   models: AIModel[];
   selectedModel: string | null;
 
+  // ───────── NEW: Advanced Design Control Parameters ────────
+  styleIntensity: number; // 0-100%
+  selectedColorPalette: ColorPalette | null;
+  customColors: string[]; // User-selected hex colors
+  removalOptions: RemovalOptions;
+  promptMode: 'AUTO' | 'MANUAL'; // AutoGeneration or Manual Input
+  customPrompt: string;
+  currentGeneratedPrompt: string; // Display the last generated prompt
+  colorAnalysis: ColorAnalysis | null; // Colors extracted from result
+  availableColorPalettes: ColorPalette[]; // Pre-built palettes
+  paletteLoaded: boolean;
+  // ────────────────────────────────────────────────────────────
+
   // History
   history: Project[];
   historyLoaded: boolean;
@@ -51,9 +77,9 @@ interface DesignState {
 
   // Actions
   setOriginalImage: (uri: string) => void;
-  uploadImage: (imageUri: string) => Promise<string | null>;
+  uploadImage: (imageUri: string) => Promise<{ projectId: string | null; success: boolean; isGuest: boolean; originalImageUrl: string | null } | null>;
   generatePreviews: (projectId: string | undefined, styles?: string[], roomType?: string, guestImageUrl?: string) => Promise<void>;
-  generateFinal: (projectId: string, styleName: string, roomType?: string, guestImageUrl?: string, customPrompt?: string) => Promise<void>;
+  generateFinal: (projectId: string, styleName: string, roomType?: string, guestImageUrl?: string, customPrompt?: string, aiProvider?: string) => Promise<void>;
   regenerateSinglePreview: (styleName: string, projectId?: string, guestImageUrl?: string) => Promise<void>;
   selectStyle: (styleName: string) => void;
   selectModel: (modelId: string) => void;
@@ -64,9 +90,32 @@ interface DesignState {
   deleteProject: (projectId: string) => Promise<void>;
   reset: () => void;
   clearError: () => void;
+  cancelGeneration: () => void;
+
+  // ───────── NEW: Advanced Design Control Actions ────────
+  setStyleIntensity: (intensity: number) => void;
+  setSelectedColorPalette: (palette: ColorPalette | null) => void;
+  setCustomColors: (colors: string[]) => void;
+  setRemovalOptions: (options: RemovalOptions) => void;
+  setPromptMode: (mode: 'AUTO' | 'MANUAL') => void;
+  setCustomPrompt: (prompt: string) => void;
+  generatePromptWithAI: (style: DesignStyle, roomType?: string) => Promise<string>;
+  loadColorPalettes: () => Promise<void>;
+  setColorAnalysis: (analysis: ColorAnalysis | null) => void;
+  // ────────────────────────────────────────────────────────────
+
+  // ──── NEW: Like Management & Persistent Storage ──────────
+  toggleProjectLike: (projectId: string) => Promise<boolean | undefined>;
+  refreshHistory: () => Promise<void>;
+  saveGenerationToHistory: (projectId: string) => Promise<void>;
+  // ──────────────────────────────────────────────────────────
 }
 
-export const useDesignStore = create<DesignState>((set, get) => ({
+export const useDesignStore = create<DesignState>((set, get) => {
+  // Private: AbortController for cancelling ongoing generation
+  let generationAbortController: AbortController | null = null;
+
+  return {
   currentProjectId: null,
   originalImageUri: null,
   originalImageUrl: null,
@@ -79,6 +128,25 @@ export const useDesignStore = create<DesignState>((set, get) => ({
   stylesLoaded: false,
   models: [],
   selectedModel: null,
+
+  // ───────── NEW: Initialize Advanced Design Control ────────
+  styleIntensity: 50,
+  selectedColorPalette: null,
+  customColors: [],
+  removalOptions: {
+    furniture: false,
+    decor: false,
+    electronics: false,
+    emptyRoom: false,
+  },
+  promptMode: 'AUTO',
+  customPrompt: '',
+  currentGeneratedPrompt: '',
+  colorAnalysis: null,
+  availableColorPalettes: [],
+  paletteLoaded: false,
+  // ────────────────────────────────────────────────
+
   history: [],
   historyLoaded: false,
   credits: null,
@@ -96,18 +164,46 @@ export const useDesignStore = create<DesignState>((set, get) => ({
   uploadImage: async (imageUri: string) => {
     set({ status: 'uploading', error: null });
     try {
+      console.log('[DesignStore] uploadImage starting:', imageUri.substring(0, 50));
       const response = await api.uploadImage(imageUri);
+      console.log('[DesignStore] uploadImage API response:', {
+        success: response.success,
+        projectId: response.data?.projectId,
+        originalImageUrl: response.data?.originalImageUrl ? `${response.data.originalImageUrl.substring(0, 50)}...` : 'undefined',
+      });
+      
       if (response.success && response.data) {
         const imageUrl = fullUrl(response.data.originalImageUrl) || null;
+        console.log('[DesignStore] uploadImage after fullUrl():', {
+          originalImageUrl: imageUrl ? `${imageUrl.substring(0, 50)}...` : 'null',
+        });
+        
         set({
           currentProjectId: response.data.projectId || null,
           originalImageUrl: imageUrl,
           status: 'idle',
         });
-        return response.data.projectId || null;
+        
+        // Return a truthy value even for guest mode (projectId will be null but upload succeeded)
+        return {
+          projectId: response.data.projectId || null,
+          success: true,
+          isGuest: !response.data.projectId,
+          originalImageUrl: imageUrl,
+        };
       }
+      console.error('[DesignStore] uploadImage failed - no success or data:', {
+        success: response.success,
+        hasData: !!response.data,
+        error: response.error,
+      });
+      set({ error: response.error || 'Upload failed', status: 'error' });
       return null;
     } catch (error: any) {
+      console.error('[DesignStore] uploadImage error:', {
+        message: error.message,
+        stack: error.stack,
+      });
       set({ error: error.message, status: 'error' });
       return null;
     }
@@ -116,7 +212,14 @@ export const useDesignStore = create<DesignState>((set, get) => ({
   generatePreviews: async (projectId: string | undefined, styles?: string[], roomType?: string, guestImageUrl?: string) => {
     set({ status: 'previewing', error: null, previews: [] });
     try {
-      const response = await api.generatePreview(projectId, styles, roomType, guestImageUrl, get().selectedModel || undefined);
+      const response = await api.generatePreview(
+        projectId,
+        styles,
+        roomType,
+        guestImageUrl,
+        get().selectedModel || undefined,
+        get().styleIntensity,
+      );
       if (response.success && response.data) {
         set({
           previews: response.data.previews.map((p: PreviewImage) => ({
@@ -128,28 +231,17 @@ export const useDesignStore = create<DesignState>((set, get) => ({
         });
         // Refresh credits after generating
         get().loadCredits();
+      } else {
+        // API returned error response
+        const errorMsg = response.error || 'Generation failed';
+        set({ error: errorMsg, status: 'error' });
+        throw new Error(errorMsg);
       }
     } catch (error: any) {
-      set({ error: error.message, status: 'error' });
-    }
-  },
-
-  generateFinal: async (projectId: string, styleName: string, roomType?: string, guestImageUrl?: string, customPrompt?: string) => {
-    set({ status: 'generating', error: null, selectedStyle: styleName });
-    try {
-      const response = await api.generateFinal(projectId, styleName, roomType, guestImageUrl, get().selectedModel || undefined, customPrompt);
-      if (response.success && response.data) {
-        set({
-          finalImageUrl: fullUrl(response.data.finalImageUrl) || null,
-          originalImageUrl: fullUrl(response.data.originalImageUrl) || null,
-          isMock: !!(response.data as any).isMock,
-          status: 'completed',
-        });
-        // Refresh credits after generating
-        get().loadCredits();
-      }
-    } catch (error: any) {
-      set({ error: error.message, status: 'error' });
+      const errorMsg = error.message || 'Failed to generate design';
+      set({ error: errorMsg, status: 'error' });
+      // Re-throw so the component can handle it
+      throw error;
     }
   },
 
@@ -162,6 +254,7 @@ export const useDesignStore = create<DesignState>((set, get) => ({
         undefined,
         guestImageUrl,
         get().selectedModel || undefined,
+        get().styleIntensity,
       );
       if (response.success && response.data && response.data.previews.length > 0) {
         const newPreview = response.data.previews[0];
@@ -197,10 +290,16 @@ export const useDesignStore = create<DesignState>((set, get) => ({
     try {
       const response = await api.getStyles();
       if (response.success && response.data) {
-        set({ styles: response.data, stylesLoaded: true });
+        set({ styles: response.data, stylesLoaded: true, error: null });
+      } else {
+        set({ styles: [], stylesLoaded: true, error: 'Failed to load styles' });
       }
     } catch (error: any) {
-      set({ error: error.message });
+      set({ 
+        styles: [],
+        stylesLoaded: true,
+        error: error.message || 'Failed to load styles'
+      });
     }
   },
 
@@ -210,12 +309,23 @@ export const useDesignStore = create<DesignState>((set, get) => ({
       if (response.success && response.data) {
         set({
           models: response.data,
-          // Auto-select first recommended model if none is selected
-          selectedModel: get().selectedModel || response.data.find(m => m.recommended)?.id || response.data[0]?.id || null
+          // Auto-select first model if none is selected
+          selectedModel: get().selectedModel || response.data[0]?.id || null,
+          error: null,
+        });
+      } else {
+        set({ 
+          models: [],
+          selectedModel: null,
+          error: 'Failed to load models'
         });
       }
     } catch (error: any) {
-      set({ error: error.message });
+      set({ 
+        models: [],
+        selectedModel: null,
+        error: error.message || 'Failed to load models'
+      });
     }
   },
 
@@ -235,10 +345,22 @@ export const useDesignStore = create<DesignState>((set, get) => ({
             finalImageUrl: fullUrl(p.finalImageUrl) || p.finalImageUrl,
           })),
           historyLoaded: true,
+          error: null,
+        });
+      } else {
+        // Even if data is empty or response.success is false, mark as loaded
+        set({
+          history: [],
+          historyLoaded: true,
+          error: response.success ? null : 'Failed to load history',
         });
       }
     } catch (error: any) {
-      set({ error: error.message });
+      set({ 
+        history: [],
+        historyLoaded: true,
+        error: error.message || 'Failed to load history' 
+      });
     }
   },
 
@@ -290,10 +412,380 @@ export const useDesignStore = create<DesignState>((set, get) => ({
       freeCredits: null,
       paidCredits: null,
       possibleGenerations: null,
+      // ───────── Reset Advanced Design Parameters ────────
+      styleIntensity: 50,
+      selectedColorPalette: null,
+      customColors: [],
+      removalOptions: {
+        furniture: false,
+        decor: false,
+        electronics: false,
+        emptyRoom: false,
+      },
+      promptMode: 'AUTO',
+      customPrompt: '',
+      currentGeneratedPrompt: '',
+      colorAnalysis: null,
+      // ──────────────────────────────────────────────────
     });
   },
 
   clearError: () => {
     set({ error: null });
   },
-}));
+
+  // Cancel ongoing generation
+  cancelGeneration: () => {
+    generationAbortController?.abort();
+    generationAbortController = null;
+    set({ status: 'idle', error: 'Generation cancelled by user' });
+  },
+
+  // Update API calls to use AbortController
+  generateFinal: async (projectId: string, styleName: string, roomType?: string, guestImageUrl?: string, customPrompt?: string, aiProvider?: string) => {
+    console.log('[DesignStore] generateFinal called with:', {
+      projectId,
+      styleName,
+      roomType,
+      guestImageUrl: guestImageUrl ? `${guestImageUrl.substring(0, 50)}...` : 'undefined',
+      customPrompt,
+      aiProvider,
+      selectedModel: get().selectedModel,
+      styleIntensity: get().styleIntensity,
+    });
+    
+    set({ status: 'generating', error: null, selectedStyle: styleName });
+    generationAbortController = new AbortController();
+
+    try {
+      const response = await api.generateFinal(
+        projectId,
+        styleName,
+        roomType,
+        guestImageUrl,
+        get().selectedModel || undefined,
+        customPrompt,
+        aiProvider,
+        get().styleIntensity,
+        generationAbortController.signal,
+      );
+
+      generationAbortController = null;
+
+      console.log('[DesignStore] generateFinal API response:', {
+        success: response.success,
+        finalImageUrl: response.data?.finalImageUrl ? `${response.data.finalImageUrl.substring(0, 50)}...` : 'undefined',
+        originalImageUrl: response.data?.originalImageUrl ? `${response.data.originalImageUrl.substring(0, 50)}...` : 'undefined',
+        status: response.data?.status,
+      });
+
+      if (response.success && response.data) {
+        set({
+          finalImageUrl: fullUrl(response.data.finalImageUrl) || null,
+          originalImageUrl: fullUrl(response.data.originalImageUrl) || null,
+          isMock: !!(response.data as any).isMock,
+          status: 'completed',
+          error: null,
+        });
+        get().loadCredits();
+
+        // ──── NEW: Save to history after successful generation ────
+        try {
+          await get().saveGenerationToHistory(projectId);
+        } catch (saveError: any) {
+          console.warn('[DesignStore] Failed to save to history:', saveError.message);
+          // Don't fail the generation, just warn
+        }
+        // ──────────────────────────────────────────────────────────
+
+        return;
+      }
+
+      set({
+        error: 'Generation failed for selected provider',
+        status: 'error',
+        finalImageUrl: null,
+      });
+    } catch (error: any) {
+      generationAbortController = null;
+      
+      const errorMsg = error?.message || 'Generation failed for selected provider';
+      set({
+        error: errorMsg,
+        status: 'error',
+        finalImageUrl: null,
+      });
+    }
+  },
+
+  // ───────── NEW: Advanced Design Control Actions ────────
+  setStyleIntensity: (intensity: number) => {
+    set({ styleIntensity: Math.max(0, Math.min(100, intensity)) });
+  },
+
+  setSelectedColorPalette: (palette: ColorPalette | null) => {
+    set({ selectedColorPalette: palette });
+  },
+
+  setCustomColors: (colors: string[]) => {
+    set({ customColors: colors });
+  },
+
+  setRemovalOptions: (options: RemovalOptions) => {
+    set({ removalOptions: options });
+  },
+
+  setPromptMode: (mode: 'AUTO' | 'MANUAL') => {
+    set({ promptMode: mode });
+  },
+
+  setCustomPrompt: (prompt: string) => {
+    set({ customPrompt: prompt, promptMode: 'MANUAL' });
+  },
+
+  setColorAnalysis: (analysis: ColorAnalysis | null) => {
+    set({ colorAnalysis: analysis });
+  },
+
+  loadColorPalettes: async () => {
+    try {
+      // For now, use hardcoded palettes. In production, fetch from API
+      const palettes: ColorPalette[] = [
+        {
+          id: 'warm-earth',
+          name: 'Warm Earth',
+          category: 'warm',
+          colors: ['#8B4513', '#D2B48C', '#CD853F', '#DEB887'],
+          likes: 352,
+        },
+        {
+          id: 'cool-ocean',
+          name: 'Cool Ocean',
+          category: 'cool',
+          colors: ['#003366', '#0066CC', '#00CCFF', '#66FFFF'],
+          likes: 428,
+        },
+        {
+          id: 'vibrant-sunset',
+          name: 'Vibrant Sunset',
+          category: 'vibrant',
+          colors: ['#FF6B35', '#FF8C42', '#FFA500', '#FFE06B'],
+          likes: 512,
+        },
+        {
+          id: 'neutral-minimalist',
+          name: 'Neutral Minimalist',
+          category: 'neutral',
+          colors: ['#FFFFFF', '#F5F5F5', '#A9A9A9', '#696969'],
+          likes: 289,
+        },
+        {
+          id: 'pastel-soft',
+          name: 'Pastel Soft',
+          category: 'pastel',
+          colors: ['#FFB3BA', '#FFDFBA', '#FFFFBA', '#BAFFC9'],
+          likes: 401,
+        },
+        {
+          id: 'luxury-gold',
+          name: 'Luxury Gold',
+          category: 'warm',
+          colors: ['#2F1B06', '#8B7355', '#DAA520', '#FFD700'],
+          likes: 578,
+        },
+      ];
+
+      set({
+        availableColorPalettes: palettes,
+        paletteLoaded: true,
+        error: null,
+      });
+    } catch (error: any) {
+      set({
+        availableColorPalettes: [],
+        paletteLoaded: true,
+        error: error.message || 'Failed to load color palettes',
+      });
+    }
+  },
+
+  generatePromptWithAI: async (style: DesignStyle, roomType?: string) => {
+    try {
+      // Call Groq API through backend endpoint
+      const response = await api.generateAdvancedPrompt({
+        style: style.name,
+        styleName: style.displayName,
+        intensity: get().styleIntensity,
+        colorPalette: get().selectedColorPalette,
+        removals: get().removalOptions,
+        roomType: roomType || 'living room',
+      });
+
+      if (response.success && response.data) {
+        const { fullPrompt } = response.data;
+        set({
+          currentGeneratedPrompt: fullPrompt,
+          customPrompt: fullPrompt,
+          promptMode: 'AUTO',
+          error: null,
+        });
+        return fullPrompt;
+      } else {
+        throw new Error('Failed to generate prompt');
+      }
+    } catch (error: any) {
+      const errorMsg = error.message || 'Failed to generate prompt with AI';
+      set({ error: errorMsg });
+      console.error('[DesignStore] generatePromptWithAI error:', error);
+      return '';
+    }
+  },
+
+  // ────── NEW: Like Management ──────────────────────────────
+  toggleProjectLike: async (projectId: string) => {
+    try {
+      const response = await api.toggleLike(projectId);
+      if (response.success && response.data) {
+        // Update history with new like status
+        const updatedHistory = get().history.map((p: Project) =>
+          p.id === projectId
+            ? {
+                ...p,
+                isLiked: response.data.isLiked,
+                likeCount: response.data.likeCount,
+              }
+            : p
+        );
+        set({ history: updatedHistory, error: null });
+        return response.data.isLiked;
+      }
+    } catch (error: any) {
+      set({ error: error.message });
+      console.error('[DesignStore] toggleProjectLike error:', error);
+    }
+  },
+
+  // ──── NEW: Refresh History with Persistent Storage ───────
+  refreshHistory: async () => {
+    const currentHistory = get().history;
+    if (currentHistory.length > 0) {
+      // Mark as refreshing without clearing existing data
+      set({ historyLoaded: false, error: null });
+    }
+
+    try {
+      const response = await api.getHistory();
+      if (response.success && response.data) {
+        const processedHistory = response.data.map((p: any) => ({
+          ...p,
+          originalImageUrl: fullUrl(p.originalImageUrl) || p.originalImageUrl,
+          finalImageUrl: fullUrl(p.finalImageUrl) || p.finalImageUrl,
+          previewImages: (p.previewImages || []).map((img: any) => ({
+            ...img,
+            imageUrl: fullUrl(img.imageUrl) || img.imageUrl,
+          })),
+          finalImage: p.finalImage
+            ? {
+                ...p.finalImage,
+                imageUrl: fullUrl(p.finalImage.imageUrl) || p.finalImage.imageUrl,
+              }
+            : null,
+        }));
+
+        set({
+          history: processedHistory,
+          historyLoaded: true,
+          error: null,
+        });
+
+        // Optional: Save to AsyncStorage for offline access
+        if (typeof AsyncStorage !== 'undefined') {
+          try {
+            await AsyncStorage.setItem(
+              'designHistory',
+              JSON.stringify({
+                data: processedHistory,
+                timestamp: new Date().toISOString(),
+              })
+            );
+          } catch (storageError: any) {
+            console.warn('[DesignStore] Failed to cache history:', storageError.message);
+          }
+        }
+      } else {
+        set({ history: [], historyLoaded: true });
+      }
+    } catch (error: any) {
+      // Load from cache if available
+      if (typeof AsyncStorage !== 'undefined') {
+        try {
+          const cached = await AsyncStorage.getItem('designHistory');
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            set({
+              history: parsed.data || [],
+              historyLoaded: true,
+              error: `Offline mode: ${error.message}`,
+            });
+            return;
+          }
+        } catch (cacheError) {
+          // Ignore cache errors
+        }
+      }
+
+      set({
+        history: [],
+        historyLoaded: true,
+        error: error.message || 'Failed to load history',
+      });
+    }
+  },
+
+  // ──── NEW: Auto-save After Generation ──────────────────
+  saveGenerationToHistory: async (projectId: string) => {
+    try {
+      const response = await api.getProject(projectId);
+      if (response.success && response.data) {
+        const newProject: Project = {
+          ...response.data,
+          originalImageUrl:
+            fullUrl(response.data.originalImageUrl) ||
+            response.data.originalImageUrl,
+          finalImageUrl:
+            fullUrl(response.data.finalImageUrl) ||
+            response.data.finalImageUrl,
+        };
+
+        // Add to the beginning of history
+        const currentHistory = get().history;
+        const updatedHistory = [
+          newProject,
+          ...currentHistory.filter((p) => p.id !== projectId),
+        ];
+
+        set({ history: updatedHistory });
+
+        // Save to cache
+        if (typeof AsyncStorage !== 'undefined') {
+          try {
+            await AsyncStorage.setItem(
+              'designHistory',
+              JSON.stringify({
+                data: updatedHistory,
+                timestamp: new Date().toISOString(),
+              })
+            );
+          } catch (storageError: any) {
+            console.warn('[DesignStore] Failed to cache history:', storageError.message);
+          }
+        }
+      }
+    } catch (error: any) {
+      console.warn('[DesignStore] saveGenerationToHistory error:', error.message);
+      // Non-critical error, don't stop generation
+    }
+  },
+  // ────────────────────────────────────────────────────────
+  };
+});

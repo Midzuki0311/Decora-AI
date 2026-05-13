@@ -1,44 +1,31 @@
-import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import HomePage from './pages/Home';
-import AboutPage from './pages/About';
-import ContactPage from './pages/Contact';
-import LoginPage from './pages/Login';
-import SignupPage from './pages/Signup';
-import BudgetPage from './pages/Budget';
-import QuizPage from './pages/Quiz';
-import MaterialsPage from './pages/Materials';
-import GalleryPage from './pages/Gallery';
-import DiagramsPage from './pages/Diagrams';
-import StartProjectPage from './pages/StartProject';
-import PrivacyPage from './pages/Privacy';
-import LinksPage from './pages/Links';
-import Header from './components/Header';
-import Footer from './components/Footer';
-import Toast from './components/Toast';
+import { useCallback, useState } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import IntroScreen from "./components/IntroScreen";
+import Layout from "./components/Layout";
+import HomePageTest from "./pages/HomePageTest";
+import CloudPage from "./pages/CloudPage";
+import DesktopPage from "./pages/DesktopPage";
+import ReviewsPage from "./pages/ReviewsPage";
+import ExplorePage from "./pages/ExplorePage";
 
 export default function App() {
+  const [introComplete, setIntroComplete] = useState(false);
+  const handleIntroComplete = useCallback(() => setIntroComplete(true), []);
+
   return (
-    <Router>
-      <Header />
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="/contact" element={<ContactPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route path="/budget" element={<BudgetPage />} />
-        <Route path="/quiz" element={<QuizPage />} />
-        <Route path="/materials" element={<MaterialsPage />} />
-        <Route path="/gallery" element={<GalleryPage />} />
-        <Route path="/diagrams" element={<DiagramsPage />} />
-        <Route path="/start-project" element={<StartProjectPage />} />
-        <Route path="/privacy" element={<PrivacyPage />} />
-        <Route path="/links" element={<LinksPage />} />
-      </Routes>
-      <Footer />
-      <Toast />
-    </Router>
+    <BrowserRouter>
+      <IntroScreen onComplete={handleIntroComplete} />
+      <div className={introComplete ? "app-shell app-shell--ready" : "app-shell"}>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<HomePageTest />} />
+            <Route path="/cloud" element={<CloudPage />} />
+            <Route path="/desktop" element={<DesktopPage />} />
+            <Route path="/reviews" element={<ReviewsPage />} />
+            <Route path="/explore" element={<ExplorePage />} />
+          </Route>
+        </Routes>
+      </div>
+    </BrowserRouter>
   );
 }
-

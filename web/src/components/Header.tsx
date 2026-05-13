@@ -1,64 +1,96 @@
-import React, { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import Icon from './Icon';
 
 export default function Header() {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [scrollY, setScrollY] = useState(0);
+  const [hidden, setHidden] = useState(false);
+  const lastScrollY = useRef(0);
+  const ticking = useRef(false);
   const location = useLocation();
 
+  useEffect(() => {
+    const handleScroll = () => {
+      if (ticking.current) return;
+
+      ticking.current = true;
+      requestAnimationFrame(() => {
+        const nextScrollY = window.scrollY;
+        const delta = nextScrollY - lastScrollY.current;
+        const isAtTop = nextScrollY < 18;
+
+        setScrollY(nextScrollY);
+
+        // Hide on confident downward scroll, reveal immediately on upward scroll or page top.
+        if (isAtTop) {
+          setHidden(false);
+        } else if (delta > 8 && nextScrollY > 140) {
+          setHidden(true);
+        } else if (delta < -4) {
+          setHidden(false);
+        }
+
+        lastScrollY.current = Math.max(nextScrollY, 0);
+        ticking.current = false;
+      });
+    };
+
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const isActive = (path: string) => location.pathname === path;
+  const isTop = scrollY < 18;
+  const navClassName = [
+    'site-navbar',
+    isTop ? 'navbar--top' : 'navbar--floating navbar--mirror',
+    hidden ? 'navbar--hidden' : '',
+  ].join(' ');
 
   const navLinks = [
-    { label: 'Home', path: '/' },
-    { label: 'About', path: '/about' },
-    { label: 'Contact', path: '/contact' },
-    { label: 'Log in', path: '/login' },
+    { label: 'Cloud', path: '/cloud' },
+    { label: 'Desktop', path: '/desktop' },
+    { label: 'Reviews', path: '/reviews' },
+    { label: 'Explore', path: '/explore' },
   ];
 
   return (
-    <header className="sticky top-0 z-1000 flex items-center justify-between px-12 py-3.5 bg-white border-b border-gray-200 shadow-sm">
-      <Link to="/" className="flex items-center gap-2.5 no-underline cursor-pointer">
-        <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-          <rect width="36" height="36" rx="6" fill="#1bbfb3"/>
-          <path d="M18 8L28 18H24V26H12V18H8L18 8Z" fill="#fff"/>
-          <rect x="15" y="20" width="6" height="6" rx="1" fill="#f5a623"/>
-        </svg>
-        <span className="text-xl font-bold text-gray-800">Decore</span>
-      </Link>
-
-      <button 
-        className="hidden sm:block bg-none border-none cursor-pointer text-2xl text-gray-800"
-        onClick={() => setMenuOpen(!menuOpen)}
-      >
-        {menuOpen ? <X size={24} /> : <Menu size={24} />}
-      </button>
-
-      <nav className={`${menuOpen ? 'flex' : 'hidden'} absolute top-full left-0 right-0 bg-white flex-col p-5 border-b border-gray-200 shadow-lg sm:static sm:flex sm:flex-row sm:items-center sm:gap-7 sm:bg-transparent sm:border-none sm:p-0 sm:shadow-none`}>
-        {navLinks.map((link) => (
-          <Link
-            key={link.path}
-            to={link.path}
-            className={`no-underline font-medium text-base transition-colors cursor-pointer relative ${
-              isActive(link.path)
-                ? 'text-teal-500'
-                : 'text-gray-600 hover:text-teal-500'
-            }`}
-            onClick={() => setMenuOpen(false)}
-          >
-            {link.label}
-            {isActive(link.path) && (
-              <span className="absolute bottom-[-4px] left-0 right-0 h-0.75 bg-teal-500 rounded-sm"></span>
-            )}
-          </Link>
-        ))}
-        <Link
-          to="/signup"
-          className="bg-orange-500 text-white border-none px-6 py-2.5 rounded-full font-semibold text-base cursor-pointer no-underline transition-all hover:bg-orange-600 hover:scale-105 active:scale-95"
-          onClick={() => setMenuOpen(false)}
-        >
-          Sign up
+    <header className={navClassName}>
+      <div className="site-navbar__inner">
+        <Link to="/" className="site-navbar__brand" aria-label="PixelLift home">
+          <span className="site-navbar__mark">
+            <Icon name="sparkles" className="h-6 w-6 text-white" />
+          </span>
+          <span className="site-navbar__wordmark">PixelLift</span>
         </Link>
-      </nav>
+
+        <nav className="site-navbar__links" aria-label="Primary navigation">
+          {navLinks.map((link) => (
+            <Link
+              key={link.path}
+              to={link.path}
+              className={isActive(link.path) ? 'site-navbar__link is-active' : 'site-navbar__link'}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="site-navbar__actions">
+          <Link to="/explore" className="site-navbar__ghost">
+            Gallery
+          </Link>
+          <Link to="/cloud" className="site-navbar__cta">
+            Start
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+          <button className="site-navbar__menu" aria-label="Open navigation">
+            <Icon name="menu" />
+          </button>
+        </div>
+      </div>
     </header>
   );
 }

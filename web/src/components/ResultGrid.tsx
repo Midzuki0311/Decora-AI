@@ -16,19 +16,59 @@ export default function ResultGrid() {
 
   const handleDownload = async (url: string, index: number) => {
     try {
-      const response = await fetch(url);
+      // Validate URL
+      if (!url || !url.startsWith('http')) {
+        alert('Invalid image URL. Please try again.');
+        return;
+      }
+
+      // Fetch the image with timeout protection
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      // Check for successful response
+      if (!response.ok) {
+        throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+      }
+
+      // Get the blob with proper error handling
       const blob = await response.blob();
+
+      // Validate blob size
+      if (blob.size === 0) {
+        throw new Error('Image file is empty');
+      }
+
+      // Create and trigger download
       const downloadUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = `decora-ai-${selectedStyle}-${index + 1}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(downloadUrl);
-    } catch {
-      // Fallback: open in new tab
-      window.open(url, '_blank');
+      const downloadLink = document.createElement('a');
+      downloadLink.href = downloadUrl;
+      downloadLink.download = `decora-ai-${selectedStyle}-${index + 1}.png`;
+      
+      // Append to body, click, and remove (required for some browsers)
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      
+      // Clean up the blob URL after a short delay
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 100);
+    } catch (error: any) {
+      console.error('Download error:', error);
+      
+      if (error.name === 'AbortError') {
+        alert('Download timed out. Please try again.');
+      } else if (error.message.includes('HTTP')) {
+        alert('Failed to download image. The image may no longer be available.');
+        // Fallback: open in new tab
+        window.open(url, '_blank');
+      } else {
+        alert(`Failed to download image: ${error.message || 'Unknown error'}. Trying to open in new tab...`);
+        // Fallback: open in new tab
+        window.open(url, '_blank');
+      }
     }
   };
 

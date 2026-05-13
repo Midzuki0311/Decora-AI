@@ -16,7 +16,9 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 interface Props {
+  /** Original/before state image (user-uploaded room photo) */
   beforeImage: string | ImageSourcePropType;
+  /** Generated/after state image (AI-furnished result) */
   afterImage: string | ImageSourcePropType;
   height?: number;
 }
@@ -43,6 +45,7 @@ export function BeforeAfterSlider({ beforeImage, afterImage, height = 360 }: Pro
     if (w > 0 && containerWidth === 0) {
       containerWidthVal.value = w;
       setContainerWidth(w);
+      // Initialize slider at 50% position
       sliderX.value = withTiming(w / 2, { duration: 300 });
     }
   };
@@ -61,7 +64,13 @@ export function BeforeAfterSlider({ beforeImage, afterImage, height = 360 }: Pro
       sliderX.value = clamp(e.x, EDGE_PADDING, max);
     });
 
-  // Since we want Left to be Before, we put After image behind. Before image is clipped on top.
+  /**
+   * FIX #1: Image Distortion
+   * 
+   * The clipping container width animates based on slider position.
+   * Images inside MUST have a fixed width equal to containerWidth
+   * (not '100%'), so they're only clipped, not resized.
+   */
   const beforeClipStyle = useAnimatedStyle(() => ({
     width: sliderX.value,
   }));
@@ -82,33 +91,79 @@ export function BeforeAfterSlider({ beforeImage, afterImage, height = 360 }: Pro
       <GestureDetector gesture={panGesture}>
         <View style={[styles.wrap, { height }]} onLayout={onLayout}>
           
-          {/* AFTER IMAGE (Behind) - visible on the right */}
-          <Image source={afterSource} style={[styles.image, { height }]} resizeMode="cover" />
+          {/**
+            * FIX #2: Swapped Assets
+            * 
+            * - Background (full width, always visible on right): afterImage (AI-generated)
+            * - Clipped overlay (left side, width animates): beforeImage (original room)
+            * 
+            * This creates the effect:
+            * - LEFT side: Original room (beforeImage)
+            * - RIGHT side: Generated room (afterImage)
+            * - Slider divides them
+            */}
 
-          {/* BEFORE IMAGE (Clipped on top) - visible on the left strictly inside the clip */}
+          {/* Background Layer: AFTER/Generated image (AI-furnished room) - visible on the right */}
+          <Image 
+            source={afterSource} 
+            style={[
+              styles.image, 
+              { height, width: containerWidth || '100%' }  // Fixed width to prevent distortion
+            ]} 
+            resizeMode="cover" 
+          />
+
+          {/* Clipped Overlay: BEFORE/Original image (user-uploaded room) - visible on the left */}
           {containerWidth > 0 && (
-            <Animated.View style={[styles.afterClip, { height }, beforeClipStyle]}>
+            <Animated.View 
+              style={[
+                styles.beforeClip, 
+                { height }, 
+                beforeClipStyle  // Width animates with slider
+              ]}
+            >
               <Image 
                 source={beforeSource} 
-                style={[styles.image, { height }]} 
+                style={[
+                  styles.image, 
+                  { height, width: containerWidth }  // Fixed width = full container width
+                ]} 
                 resizeMode="cover" 
               />
             </Animated.View>
           )}
 
-          {/* SLIDER LINE & HANDLE */}
-          <Animated.View style={[styles.line, { height, left: 0 }, lineStyle]} pointerEvents="none" />
-          <Animated.View style={[styles.handle, { top: height / 2 - HANDLE_SIZE / 2, left: 0 }, handleStyle]} pointerEvents="none">
+          {/* Slider Line */}
+          <Animated.View 
+            style={[styles.line, { height, left: 0 }, lineStyle]} 
+            pointerEvents="none" 
+          />
+
+          {/* Slider Handle */}
+          <Animated.View 
+            style={[
+              styles.handle, 
+              { top: height / 2 - HANDLE_SIZE / 2, left: 0 }, 
+              handleStyle
+            ]} 
+            pointerEvents="none"
+          >
             <Ionicons name="chevron-back" size={14} color="#3525CD" />
             <View style={styles.divider} />
             <Ionicons name="chevron-forward" size={14} color="#3525CD" />
           </Animated.View>
 
-          <View style={styles.badgeLeft} pointerEvents="none"><Text style={styles.badgeText}>Before</Text></View>
-          <View style={styles.badgeRight} pointerEvents="none"><Text style={styles.badgeText}>After</Text></View>
+          {/* Labels */}
+          <View style={styles.badgeLeft} pointerEvents="none">
+            <Text style={styles.badgeText}>Before</Text>
+          </View>
+          <View style={styles.badgeRight} pointerEvents="none">
+            <Text style={styles.badgeText}>After</Text>
+          </View>
         </View>
       </GestureDetector>
 
+      {/* Gallery: Additional Before/After cards below slider */}
       <View style={styles.gallery}>
         <View style={styles.cardFull}>
           <Text style={styles.cardTitle}>After</Text>
@@ -145,13 +200,28 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     elevation: 6,
   },
+  /**
+   * Fixed-width image layer
+   * 
+   * Key points:
+   * - width is set in component (containerWidth or '100%'), not here
+   * - position: 'absolute' allows layering
+   * - resizeMode: 'cover' maintains aspect ratio
+   */
   image: {
-    width: '100%',
     position: 'absolute',
     top: 0,
     left: 0,
   },
-  afterClip: {
+  /**
+   * Clipping container for before image
+   * 
+   * Key points:
+   * - overflow: 'hidden' clips content to width
+   * - width animates with slider position
+   * - Image inside has fixed width, so it's only clipped, not scaled
+   */
+  beforeClip: {
     position: 'absolute',
     top: 0,
     left: 0,

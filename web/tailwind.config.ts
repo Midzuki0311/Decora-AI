@@ -36,6 +36,7 @@ export default {
         'pulse-soft': 'pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'shimmer': 'shimmer 2s infinite',
         'float': 'float 3s ease-in-out infinite',
+        'pageIn': 'pageIn 0.5s ease-in-out forwards',
       },
       keyframes: {
         'pulse-soft': {
@@ -49,6 +50,10 @@ export default {
         'float': {
           '0%, 100%': { transform: 'translateY(0px)' },
           '50%': { transform: 'translateY(-20px)' },
+        },
+        'pageIn': {
+          '0%': { opacity: '0', transform: 'translateY(20px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
         },
       },
     },

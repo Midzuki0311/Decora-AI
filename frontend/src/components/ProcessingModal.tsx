@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { Modal, View, StyleSheet, Dimensions, Text } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { Modal, View, StyleSheet, Dimensions, Text, Pressable } from 'react-native';
 import Animated, {
   FadeIn,
   FadeOut,
@@ -24,6 +24,8 @@ interface ProcessingModalProps {
   bgColor?: string;
   primaryColor?: string;
   message?: string;
+  onCancel?: () => void;  // Callback for cancel button
+  startTime?: number;     // Date.now() when generation started
 }
 
 function ShimmerOrb({ size, delay, color }: { size: number; delay: number; color: string }) {
@@ -116,7 +118,40 @@ export function ProcessingModal({
   bgColor = '#0d0d1a',
   primaryColor = '#6C5CE7',
   message,
+  onCancel,
+  startTime,
 }: ProcessingModalProps) {
+  // ── Elapsed time timer ──────────────────────────
+  const [elapsed, setElapsed] = useState(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (visible) {
+      const start = startTime || Date.now();
+      setElapsed(0);
+      intervalRef.current = setInterval(() => {
+        setElapsed(Math.floor((Date.now() - start) / 1000));
+      }, 1000);
+    } else {
+      setElapsed(0);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [visible, startTime]);
+
+  const formatElapsed = (seconds: number): string => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
   const progressValue = useSharedValue(0);
   const glowOpacity = useSharedValue(0.5);
   const iconScale = useSharedValue(0);
@@ -245,6 +280,31 @@ export function ProcessingModal({
                 {Math.round(Math.min(progress, 95))}%
               </Text>
             </View>
+
+            {/* Elapsed Timer */}
+            <View style={styles.timerContainer}>
+              <Ionicons name="time-outline" size={18} color="rgba(255,255,255,0.6)" />
+              <Text style={styles.timerText}>{formatElapsed(elapsed)}</Text>
+            </View>
+
+            {/* Cancel Button */}
+            {onCancel && (
+              <Animated.View 
+                entering={FadeIn.delay(800)}
+                style={styles.cancelButtonContainer}
+              >
+                <Pressable 
+                  onPress={onCancel}
+                  style={({ pressed }) => [
+                    styles.cancelButton,
+                    { backgroundColor: pressed ? `${primaryColor}40` : `${primaryColor}25` }
+                  ]}
+                >
+                  <Ionicons name="close-circle" size={24} color={primaryColor} />
+                  <Text style={[styles.cancelButtonText, { color: primaryColor }]}>Cancel</Text>
+                </Pressable>
+              </Animated.View>
+            )}
           </View>
         </Animated.View>
       </BlurView>
@@ -355,5 +415,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.5,
+  },
+  timerContainer: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    gap: 8,
+    marginTop: 4,
+  },
+  timerText: {
+    fontSize: 22,
+    fontWeight: '700' as const,
+    color: 'rgba(255,255,255,0.8)',
+    letterSpacing: 1.5,
+    fontVariant: ['tabular-nums'] as any,
+  },
+  cancelButtonContainer: {
+    width: '100%',
+    marginTop: 10,
+  },
+  cancelButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
 });

@@ -37,8 +37,16 @@ export const listGalleryItems = async (
       data: items,
       count: items.length,
     });
-  } catch (error) {
-    next(error);
+  } catch (error: any) {
+    logger.error(`Gallery listing failed: ${error.message}`);
+    // Return error details but don't expose stack traces
+    res.status(500).json({
+      success: false,
+      data: [],
+      count: 0,
+      error: 'Gallery service temporarily unavailable',
+      code: 'GALLERY_LOAD_ERROR',
+    });
   }
 };
 

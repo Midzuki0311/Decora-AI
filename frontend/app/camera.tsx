@@ -7,6 +7,7 @@ import {
   Dimensions,
   Platform,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -26,6 +27,7 @@ import { BlurView } from 'expo-blur';
 import { useUI } from '../src/components/new-ui/designSystem';
 import { useLanguageStore } from '../src/store/languageStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useDesignStore } from '../src/store/designStore';
 
 const { width, height } = Dimensions.get('window');
 
@@ -89,6 +91,7 @@ export default function CameraScreen() {
   const { colors, isDark } = useUI();
   const { t } = useLanguageStore();
   const insets = useSafeAreaInsets();
+  const { setOriginalImage } = useDesignStore();
   const [isCapturing, setIsCapturing] = useState(false);
 
   const takePhoto = async () => {
@@ -97,6 +100,7 @@ export default function CameraScreen() {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
 
       if (!permission.granted) {
+        Alert.alert('Permission required', 'Camera permission is needed');
         setIsCapturing(false);
         return;
       }
@@ -105,16 +109,17 @@ export default function CameraScreen() {
         allowsEditing: true,
         aspect: [4, 5],
         quality: 0.92,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        exif: true,
       });
 
       if (!result.canceled && result.assets[0]) {
-        router.push({
-          pathname: '/upload',
-          params: { photo: result.assets[0].uri },
-        });
+        setOriginalImage(result.assets[0].uri);
+        router.push('/designSelection' as any);
       }
     } catch (error) {
       console.error('Camera error:', error);
+      Alert.alert('Error', 'Failed to capture photo');
     } finally {
       setIsCapturing(false);
     }
@@ -126,24 +131,35 @@ export default function CameraScreen() {
         allowsEditing: true,
         aspect: [4, 5],
         quality: 0.9,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        exif: true,
       });
 
       if (!result.canceled && result.assets[0]) {
-        router.push({
-          pathname: '/upload',
-          params: { photo: result.assets[0].uri },
-        });
+        setOriginalImage(result.assets[0].uri);
+        router.push('/designSelection' as any);
       }
     } catch (error) {
       console.error('Gallery error:', error);
+      Alert.alert('Error', 'Failed to pick image');
     }
   };
 
   const browseSamples = () => {
-    router.push('/browseSamples' as any);
+    Alert.alert('Samples', 'Sample designs coming soon!');
   };
 
-  const goBack = () => router.back();
+  const goBack = () => {
+    try {
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/(tabs)/' as any);
+      }
+    } catch {
+      router.replace('/(tabs)/' as any);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -449,3 +465,4 @@ const styles = StyleSheet.create({
     borderRadius: 29,
   },
 });
+

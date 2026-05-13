@@ -107,9 +107,9 @@ export const getAdminDashboardData = async (
         });
 
         const totalGeneratedImages = await prisma.generatedImage.count();
-        const blockedUsers = users.filter((u) => u.role === 'BLOCKED').length;
-        const bannedUsers = users.filter((u) => u.role === 'BANNED').length;
-        const adminUsers = users.filter((u) => u.role === 'ADMIN').length;
+        const blockedUsers = users.filter((u: any) => u.role === 'BLOCKED').length;
+        const bannedUsers = users.filter((u: any) => u.role === 'BANNED').length;
+        const adminUsers = users.filter((u: any) => u.role === 'ADMIN').length;
 
         const recentGenerations = await prisma.generatedImage.findMany({
             take: 20,
@@ -137,7 +137,7 @@ export const getAdminDashboardData = async (
                     bannedUsers,
                     adminUsers,
                 },
-                users: users.map((user) => ({
+                users: users.map((user: any) => ({
                     ...user,
                     status: roleToStatus(user.role),
                 })),
@@ -207,7 +207,7 @@ export const getAdminUsers = async (
         res.status(200).json({
             success: true,
             data: {
-                users: users.map((user) => ({
+                users: users.map((user: any) => ({
                     ...user,
                     status: roleToStatus(user.role),
                 })),

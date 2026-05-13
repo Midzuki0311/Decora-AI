@@ -4,14 +4,19 @@ export interface User {
   username: string;
   credits: number;
   avatarUrl?: string;
+  role?: string;
+  createdAt?: string;
 }
 
 export interface AIModel {
   id: string;
-  name: string;
+  displayName: string;
   description: string;
-  isFree: boolean;
-  recommended: boolean;
+  provider: string;
+  creditCost: number;
+  speed: 'fast' | 'medium' | 'slow';
+  quality: 'good' | 'excellent' | 'premium';
+  icon?: string;
 }
 
 export interface AuthResult {
@@ -38,9 +43,17 @@ export interface Project {
   originalImageUrl: string;
   finalImageUrl?: string;
   style?: string;
-  status: 'uploaded' | 'previewing' | 'generating' | 'completed' | 'failed';
+  styleName?: string;
+  roomType?: string;
+  status: 'uploaded' | 'previewing' | 'generating' | 'completed' | 'failed' | 'UPLOADED' | 'PREVIEWING' | 'GENERATING' | 'COMPLETED' | 'FAILED';
   previewCount: number;
+  previewImages?: PreviewImage[];
+  finalImage?: { id: string; imageUrl: string; prompt?: string } | null;
+  lastPrompt?: string | null;
+  isLiked?: boolean;
+  likeCount?: number;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface ProjectDetail extends Project {
@@ -57,9 +70,10 @@ export interface ApiResponse<T> {
 }
 
 export interface UploadResult {
-  projectId: string;
+  projectId: string | null;
   originalImageUrl: string;
   status: string;
+  guestMode?: boolean;
 }
 
 export interface PreviewResult {
@@ -105,3 +119,68 @@ export interface CommunityProject {
   author: string;
   createdAt: string;
 }
+
+export interface AIModelConfig {
+  id: string;
+  displayName: string;
+  description: string;
+  apiModelName: string;
+  provider: string;
+  creditCost: number;
+  speed: 'fast' | 'medium' | 'slow';
+  quality: 'good' | 'excellent' | 'premium';
+  icon?: string;
+}
+
+// ───────── NEW: Advanced Design Control Types ─────────────
+export interface ColorPalette {
+  id: string;
+  name: string;
+  colors: string[]; // Hex color codes
+  category?: 'warm' | 'cool' | 'neutral' | 'vibrant' | 'pastel';
+  likes?: number;
+  createdAt?: string;
+}
+
+export interface RemovalOptions {
+  furniture: boolean;
+  decor: boolean;
+  electronics: boolean;
+  emptyRoom: boolean;
+}
+
+export interface StyleParameters {
+  intensity: number; // 0-100%
+  colorPalette?: ColorPalette | null;
+  customColors?: string[]; // User-selected custom hex colors
+  removals: RemovalOptions;
+}
+
+export interface ColorAnalysis {
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  palette: string[];
+  hexCodes: { [key: string]: string };
+  rgbCodes?: { [key: string]: { r: number; g: number; b: number } };
+}
+
+export interface PromptGeneratorRequest {
+  style: DesignStyle;
+  intensity: number;
+  colorPalette?: ColorPalette | null;
+  removals: RemovalOptions;
+  roomType?: string;
+  additionalContext?: string;
+}
+
+export interface AIGeneratedPrompt {
+  mainPrompt: string;
+  styleDetails: string;
+  colorDescription: string;
+  removalInstructions?: string;
+  fullPrompt: string;
+  strength: number; // Based on intensity
+}
+
+

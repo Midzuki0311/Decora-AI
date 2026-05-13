@@ -6,7 +6,6 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withSpring,
   Easing,
   interpolateColor,
   interpolate,
@@ -14,19 +13,18 @@ import Animated, {
 import { Pressable } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useUI } from './designSystem';
-import { useScrollStore } from '../../store/scrollStore';
 
-type Tab = 'home' | 'create' | 'gallery' | 'profile';
+type Tab = 'home' | 'create' | 'gallery' | 'profile' | 'design';
 
 const TABS: Array<{
   key: Tab;
   icon: keyof typeof Ionicons.glyphMap;
   activeIcon: keyof typeof Ionicons.glyphMap;
-  path: '/' | '/upload' | '/history' | '/settings';
+  path: '/' | '/createDesign' | '/gallery' | '/settings';
 }> = [
   { key: 'home', icon: 'home-outline', activeIcon: 'home', path: '/' },
-  { key: 'create', icon: 'sparkles-outline', activeIcon: 'sparkles', path: '/upload' },
-  { key: 'gallery', icon: 'image-outline', activeIcon: 'image', path: '/history' },
+  { key: 'design', icon: 'sparkles-outline', activeIcon: 'sparkles', path: '/createDesign' },
+  { key: 'gallery', icon: 'image-outline', activeIcon: 'image', path: '/gallery' },
   { key: 'profile', icon: 'person-outline', activeIcon: 'person', path: '/settings' },
 ];
 
@@ -35,38 +33,25 @@ function NavItem({ tab, isActive, onPress, isDark }: {
 }) {
   const scale = useSharedValue(1);
   const active = useSharedValue(isActive ? 1 : 0);
-  const indicatorScale = useSharedValue(isActive ? 1 : 0);
 
-  React.useEffect(() => {
+  useEffect(() => {
     active.value = withTiming(isActive ? 1 : 0, {
-      duration: 250,
+      duration: 200,
       easing: Easing.out(Easing.cubic),
     });
-    indicatorScale.value = withSpring(isActive ? 1 : 0, {
-      damping: 14,
-      stiffness: 280,
-    });
-  }, [isActive]);
+  }, [isActive, active]);
 
   const handlePressIn = useCallback(() => {
-    scale.value = withTiming(0.82, {
-      duration: 70,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, []);
+    scale.value = withTiming(0.85, { duration: 80, easing: Easing.out(Easing.cubic) });
+  }, [scale]);
 
   const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, {
-      damping: 12,
-      stiffness: 400,
-      mass: 0.3,
-    });
-  }, []);
+    scale.value = withTiming(1, { duration: 150, easing: Easing.out(Easing.cubic) });
+  }, [scale]);
 
-  // Liquid glass colors
   const activeBg = isDark 
-    ? 'rgba(108, 92, 231, 0.85)' 
-    : 'rgba(53, 37, 205, 0.9)';
+    ? 'rgba(108, 92, 231, 0.8)' 
+    : 'rgba(53, 37, 205, 0.85)';
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -75,87 +60,59 @@ function NavItem({ tab, isActive, onPress, isDark }: {
       [0, 1],
       ['transparent', activeBg],
     ),
-    shadowOpacity: interpolate(active.value, [0, 1], [0, 0.4]),
-    shadowRadius: interpolate(active.value, [0, 1], [0, 12]),
-    elevation: interpolate(active.value, [0, 1], [0, 8]),
-  }));
-
-  const indicatorStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: indicatorScale.value }],
-    opacity: interpolate(indicatorScale.value, [0, 1], [0, 1]),
-  }));
+  }), [active.value]);
 
   const iconColor = isActive ? '#FFFFFF' : (isDark ? '#555872' : '#9CA3AF');
 
   return (
     <Pressable onPress={onPress} onPressIn={handlePressIn} onPressOut={handlePressOut}>
-      <Animated.View style={[styles.item, animatedStyle, {
-        shadowColor: isDark ? '#6C5CE7' : '#3525CD',
-        shadowOffset: { width: 0, height: 4 },
-      }]}>
+      <Animated.View style={[styles.item, animatedStyle]}>
         <Ionicons
           name={isActive ? tab.activeIcon : tab.icon}
           size={22}
           color={iconColor}
         />
-        {/* Subtle glow indicator dot */}
-        {isActive && (
-          <Animated.View style={[styles.activeIndicator, indicatorStyle, {
-            backgroundColor: isDark ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.6)',
-          }]} />
-        )}
       </Animated.View>
     </Pressable>
   );
 }
 
-export function BottomNav({ active }: { active: Tab | 'result' }) {
+export function BottomNav({ 
+  active, 
+  animatedStyle 
+}: { 
+  active: Tab | 'result';
+  animatedStyle?: any;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const { colors, isDark } = useUI();
-  const { isNavVisible } = useScrollStore();
-  const translateY = useSharedValue(0);
-  const backdropOpacity = useSharedValue(1);
-
-  useEffect(() => {
-    translateY.value = withSpring(isNavVisible ? 0 : 140, {
-      damping: 20,
-      stiffness: 200,
-      mass: 0.8,
-    });
-    backdropOpacity.value = withTiming(isNavVisible ? 1 : 0, {
-      duration: 250,
-    });
-  }, [isNavVisible]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-    opacity: backdropOpacity.value,
-  }));
 
   const handleNav = useCallback((path: string) => {
-    if (pathname === path) return;
-    router.replace(path as any);
+    try {
+      if (pathname !== path) {
+        router.replace(path as any);
+      }
+    } catch (error) {
+      console.error('Navigation error:', error);
+    }
   }, [pathname, router]);
 
   return (
     <Animated.View style={[styles.outer, animatedStyle]}>
-      {/* Liquid glass container */}
       <BlurView
         intensity={isDark ? 70 : 60}
         tint={isDark ? 'dark' : 'light'}
         style={styles.blurContainer}
       >
-        {/* Extra glass overlay */}
         <View style={[styles.glassOverlay, {
           backgroundColor: isDark
-            ? 'rgba(20, 22, 34, 0.35)'
-            : 'rgba(255, 255, 255, 0.35)',
+            ? 'rgba(20, 22, 34, 0.4)'
+            : 'rgba(255, 255, 255, 0.4)',
           borderColor: isDark
             ? 'rgba(255,255,255,0.08)'
             : 'rgba(255,255,255,0.7)',
         }]}>
-          {/* Inner shimmer highlight */}
           <View style={[styles.shimmerLine, {
             backgroundColor: isDark
               ? 'rgba(255,255,255,0.06)'
@@ -164,7 +121,7 @@ export function BottomNav({ active }: { active: Tab | 'result' }) {
 
           <View style={styles.navContent}>
             {TABS.map((tab) => {
-              const isActive = active === tab.key || (active === 'result' && tab.key === 'create');
+              const isActive = active === tab.key || (active === 'result' && tab.key === 'design');
               return (
                 <NavItem
                   key={tab.key}
@@ -230,12 +187,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 18,
     position: 'relative',
-  },
-  activeIndicator: {
-    position: 'absolute',
-    bottom: 6,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
   },
 });

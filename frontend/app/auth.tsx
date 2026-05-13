@@ -85,7 +85,20 @@ export default function AuthScreen() {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.header}>
-              <Pressable style={styles.backButton} onPress={() => router.back()}>
+              <Pressable 
+                style={styles.backButton} 
+                onPress={() => {
+                  try {
+                    if (router.canGoBack?.()) {
+                      router.back();
+                    } else {
+                      router.replace('/index' as any);
+                    }
+                  } catch {
+                    router.replace('/index' as any);
+                  }
+                }}
+              >
                 <Ionicons name="arrow-back" size={20} color="#1a1c1d" />
               </Pressable>
             </View>

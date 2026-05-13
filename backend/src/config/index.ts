@@ -11,32 +11,39 @@ export const config = {
   },
 
   // ─── Multi-Provider AI ────────────────────────────────────────────────
-  // Options: 'mock' | 'fal' | 'huggingface' | 'replicate' | 'gemini'
+  // Options: 'mock' | 'fal' | 'huggingface' | 'replicate' | 'gemini' | 'segmind'
   activeAiProvider: process.env.ACTIVE_AI_PROVIDER || 'mock',
 
   // Replicate AI (paid)
   replicate: {
-    apiToken: process.env.REPLICATE_API_TOKEN || '',
+    // Backward compatibility: support both REPLICATE_API_TOKEN and legacy REPLICATE_API
+    apiToken: (process.env.REPLICATE_API_TOKEN || process.env.REPLICATE_API || '').trim(),
   },
 
   // HuggingFace AI (free, text-to-image only)
   huggingface: {
-    apiToken: process.env.HUGGINGFACE_API_TOKEN || '',
+    apiToken: (process.env.HUGGINGFACE_API_TOKEN || '').trim(),
   },
 
   // Google Gemini AI (free tier, TRUE img2img — keeps room structure)
   gemini: {
-    apiKey: process.env.GEMINI_API_KEY || '',
+    apiKey: (process.env.GEMINI_API_KEY || '').trim(),
   },
 
   // fal.ai (high quality ControlNet img2img)
   fal: {
-    apiKey: process.env.FAL_KEY || '',
+    apiKey: (process.env.FAL_KEY || '').trim(),
+  },
+
+  // Segmind (img2img endpoint)
+  segmind: {
+    apiKey: (process.env.SEGMIND_API_KEY || '').trim(),
+    endpoint: (process.env.SEGMIND_API_URL || 'https://api.segmind.com/v1/sd1.5-img2img').trim(),
   },
 
   // Groq (fast chat and vision fallback)
   groq: {
-    apiKey: process.env.GROQ_API_KEY || '',
+    apiKey: (process.env.GROQ_API_KEY || '').trim(),
   },
 
   // Legacy flag — derived from activeAiProvider for backward compatibility

@@ -43,14 +43,47 @@ export default function Result() {
 
   const handleDownload = async (url: string, name: string) => {
     try {
-      const response = await fetch(url);
+      // Fetch the image with timeout protection
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
+      // Check for successful response
+      if (!response.ok) {
+        throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+      }
+      
+      // Get the blob with proper error handling
       const blob = await response.blob();
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `decora-ai-${name.toLowerCase().replace(/\s+/g, '-')}.png`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    } catch { /* download failed */ }
+      
+      // Validate blob size
+      if (blob.size === 0) {
+        throw new Error('Image file is empty');
+      }
+      
+      // Create and trigger download
+      const blobUrl = URL.createObjectURL(blob);
+      const downloadLink = document.createElement('a');
+      downloadLink.href = blobUrl;
+      downloadLink.download = `decora-ai-${name.toLowerCase().replace(/\s+/g, '-')}.png`;
+      
+      // Append to body, click, and remove (required for some browsers)
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      
+      // Clean up the blob URL after a short delay
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+    } catch (error: any) {
+      console.error('Download error:', error);
+      if (error.name === 'AbortError') {
+        alert('Download timed out. Please try again.');
+      } else {
+        alert(`Failed to download image: ${error.message || 'Unknown error'}. Please try again.`);
+      }
+    }
   };
 
   const handleRegenerate = () => {

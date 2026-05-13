@@ -66,7 +66,7 @@ export async function getGalleryItems(): Promise<any[]> {
     });
 
     // Transform: return item with beforeImage at top level for easier access
-    return items.map((item) => ({
+    return items.map((item: any) => ({
       ...item,
       beforeImage: item.images[0] || null,
     }));
@@ -94,8 +94,8 @@ export async function getGalleryItemById(id: string): Promise<any> {
     // Transform: organize images by type and style
     return {
       ...item,
-      beforeImage: item.images.find((img) => img.type === 'before') || null,
-      styleVariants: groupImagesByStyle(item.images.filter((img) => img.type === 'after')),
+      beforeImage: item.images.find((img: any) => img.type === 'before') || null,
+      styleVariants: groupImagesByStyle(item.images.filter((img: any) => img.type === 'after')),
     };
   } catch (error: any) {
     logger.error(`Failed to fetch gallery item: ${error.message}`);

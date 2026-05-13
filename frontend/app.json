@@ -27,7 +27,13 @@
         "backgroundColor": "#F5F5F7"
       },
       "package": "com.aiinterior.app",
-      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"]
+      "minSdkVersion": 21,
+      "permissions": [
+        "CAMERA",
+        "READ_MEDIA_IMAGES",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -46,7 +52,8 @@
         "expo-media-library",
         {
           "photosPermission": "Allow AI Interior Designer to access your photos to select room images.",
-          "savePhotosPermission": "Allow AI Interior Designer to save redesigned images."
+          "savePhotosPermission": "Allow AI Interior Designer to save redesigned images.",
+          "isAccessMediaLocationEnabled": false
         }
       ],
       "expo-secure-store"

@@ -15,9 +15,17 @@ export interface ProcessedImage {
 
 export async function processUploadedImage(filePath: string): Promise<ProcessedImage> {
   const metadata = await sharp(filePath).metadata();
-  const maxDimension = 2048;
+  const originalSize = fs.statSync(filePath).size;
+
+  // ── FAST MODE: Minimal compression ─────────────────────────────────────
+  // Compress to 512px max (70% smaller than 1024) for ultra-fast pipeline
+  const maxDimension = 512;
 
   let pipeline = sharp(filePath);
+
+  // Fix image orientation based on EXIF data
+  // This ensures images taken in portrait/landscape are rotated correctly
+  pipeline = pipeline.rotate();
 
   // Resize if too large while maintaining aspect ratio
   if ((metadata.width && metadata.width > maxDimension) || (metadata.height && metadata.height > maxDimension)) {
@@ -27,17 +35,32 @@ export async function processUploadedImage(filePath: string): Promise<ProcessedI
     });
   }
 
-  // Convert to JPEG for consistency
+  // Convert to JPEG at 70 quality for fast processing (~40% smaller than q85)
+  // Remove EXIF data after rotation to prevent double-rotation by clients
   const outputFilename = `processed_${uuidv4()}.jpg`;
   const outputPath = path.join(config.storage.uploadDir, outputFilename);
 
   await pipeline
-    .jpeg({ quality: 90, progressive: true })
+    .rotate() // Auto-rotate based on EXIF orientation
+    .jpeg({ quality: 70, progressive: true })
+    .withMetadata({
+      exif: {
+        IFD0: {
+          Orientation: '1', // Reset orientation to normal after rotation (string not number)
+        }
+      }
+    })
     .toFile(outputPath);
 
   const processedMeta = await sharp(outputPath).metadata();
+  const processedSize = fs.statSync(outputPath).size;
 
-  logger.info(`Image processed: ${outputFilename} (${processedMeta.width}x${processedMeta.height})`);
+  logger.info(
+    `[ImageService] Processed: ${outputFilename} | ` +
+    `${processedMeta.width}x${processedMeta.height} | ` +
+    `${(originalSize / 1024).toFixed(0)} KB → ${(processedSize / 1024).toFixed(0)} KB ` +
+    `(saved ${Math.round((1 - processedSize / originalSize) * 100)}%)`
+  );
 
   return {
     path: outputPath,
@@ -48,13 +71,21 @@ export async function processUploadedImage(filePath: string): Promise<ProcessedI
   };
 }
 
-export async function createThumbnail(filePath: string, size = 300): Promise<string> {
+export async function createThumbnail(filePath: string, size = 200): Promise<string> {  // Reduced from 300
   const outputFilename = `thumb_${uuidv4()}.jpg`;
   const outputPath = path.join(config.storage.uploadDir, outputFilename);
 
   await sharp(filePath)
+    .rotate() // Fix EXIF orientation for thumbnails too
     .resize(size, size, { fit: 'cover' })
-    .jpeg({ quality: 80 })
+    .jpeg({ quality: 65 })  // Reduced from 80
+    .withMetadata({
+      exif: {
+        IFD0: {
+          Orientation: '1', // Reset orientation after rotation (string not number)
+        }
+      }
+    })
     .toFile(outputPath);
 
   return outputPath;

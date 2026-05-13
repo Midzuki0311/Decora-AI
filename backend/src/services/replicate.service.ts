@@ -214,7 +214,7 @@ async function runReplicateModel(
 
     const msg = error.message || '';
     if (msg.includes('402') || msg.includes('Payment Required') || msg.includes('Insufficient credit')) {
-      throw new AIBillingError('AI service balance exhausted. Please try later or contact admin.');
+      throw new AIBillingError('Replicate balance exhausted. Please top up or switch to Gemini/Fal provider.');
     }
     if (msg.includes('429') || msg.includes('Too Many Requests') || msg.includes('rate limit')) {
       throw new AIBillingError('AI service rate limit exceeded. Please try later.');

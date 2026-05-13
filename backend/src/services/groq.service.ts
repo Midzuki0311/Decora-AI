@@ -264,4 +264,95 @@ Return ONLY JSON.`,
         if (!jsonMatch) throw new Error('Failed to parse JSON response from Groq');
         return JSON.parse(jsonMatch[0]);
     }
+
+    /**
+     * Generate an advanced AI prompt based on style, intensity, colors, and removals
+     * For the Decore design system with full control parameters
+     */
+    static async generateAdvancedDesignPrompt(params: {
+        style: string;
+        styleName: string;
+        intensity: number; // 0-100%
+        colorPalette?: { name: string; colors: string[] } | null;
+        removals?: {
+            furniture: boolean;
+            decor: boolean;
+            electronics: boolean;
+            emptyRoom: boolean;
+        };
+        roomType?: string;
+        additionalContext?: string;
+    }) {
+        logger.info('[GroqService] Generating advanced prompt with parameters...');
+
+        const intensityLevel =
+            params.intensity <= 20
+                ? 'minimal changes (light refresh)'
+                : params.intensity <= 60
+                    ? 'moderate changes (furniture and colors)'
+                    : 'complete transformation (full redesign)';
+
+        const colorDescription = params.colorPalette
+            ? `Use color palette "${params.colorPalette.name}": ${params.colorPalette.colors.join(', ')}`
+            : 'Choose colors naturally fitting the style';
+
+        const removalList = [];
+        if (params.removals?.furniture) removalList.push('remove all furniture');
+        if (params.removals?.decor) removalList.push('remove decorative items');
+        if (params.removals?.electronics) removalList.push('remove electronics and appliances');
+        const removalText = params.removals?.emptyRoom
+            ? 'Show empty room with only walls, floor, windows, doors, and architectural features'
+            : removalList.length > 0
+                ? `Actions: ${removalList.join(', ')}`
+                : '';
+
+        const systemPrompt = `You are an expert interior design AI prompt engineer specialized in producing  prompts for Flux, Stable Diffusion 3, and Midjourney.
+You understand intensity levels, color palettes, and design transformations.
+
+Return ONLY a valid JSON object (NO markdown, NO code blocks):
+{
+  "mainPrompt": "1-2 sentence objective in Uzbek",
+  "styleDetails": "furniture, materials, and fixtures specific to ${params.styleName}",
+  "colorDescription": "${colorDescription}",
+  "removalInstructions": "removal operations ${removalText || '(none)'}",
+  "fullPrompt": "Complete English prompt for image generation. Must include: ${params.styleName} style, ${intensityLevel}, ${colorDescription}. End with: photorealistic photography, professional interior design, sharp focus, studio lighting, 4K resolution, high detail"
+}`;
+
+        const messages: GroqMessage[] = [
+            {
+                role: 'system',
+                content: systemPrompt,
+            },
+            {
+                role: 'user',
+                content: `Generate a professional interior design prompt:
+- Room Type: ${params.roomType || 'general room'}
+- Style: ${params.styleName} (${params.style})
+- Design Intensity: ${params.intensity}% (${intensityLevel})
+- Color Palette: ${params.colorPalette?.name || 'style-default'}
+- Removals: ${removalText || 'none'}
+${params.additionalContext ? `- Additional Notes: ${params.additionalContext}` : ''}
+
+Return ONLY the JSON object described in system message. No explanations.`,
+            },
+        ];
+
+        try {
+            const text = await this.createCompletion(messages, GROQ_MODELS.TEXT_PRO, 0.8, 1200);
+            // Remove markdown code blocks if present
+            const cleanJson = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+            const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
+
+            if (!jsonMatch) {
+                logger.error('[GroqService] Could not extract JSON from response:', text.substring(0, 200));
+                throw new Error('Could not parse JSON response from Groq');
+            }
+
+            return JSON.parse(jsonMatch[0]);
+        } catch (error) {
+            logger.error('[GroqService] Advanced prompt generation error:', error);
+            throw error;
+        }
+    }
 }
+

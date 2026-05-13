@@ -13,6 +13,7 @@
     "@google/generative-ai": "^0.24.1",
     "@huggingface/inference": "^4.13.14",
     "@libsql/client": "^0.17.0",
+    "@prisma/adapter-d1": "^7.6.0",
     "@prisma/adapter-libsql": "^7.4.2",
     "@prisma/client": "^7.4.2",
     "bcryptjs": "^2.4.3",
